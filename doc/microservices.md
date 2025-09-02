@@ -12,6 +12,11 @@ This is not a runtime microservice but a foundational infrastructure stack respo
 *   **Interactions**: This stack is deployed first. It provides outputs (like the database cluster ARN, VPC ID, API Gateway ID) that are consumed by the individual microservice deployment stacks.
 *   **Deployment**: Managed via Terraform in a dedicated directory (`infra/core/`).
 
+> [!NOTE]
+> **Cost Consideration**: Amazon Aurora is a premium service and is **not** included in the AWS Free Tier. To run this
+> project without incurring costs for the first 12 months, replace `Amazon Aurora PostgreSQL` with a standard
+> `Amazon RDS for PostgreSQL` instance using a free-tier eligible instance class (e.g., `db.t3.micro`).
+
 ### 1. Auth Service (Implemented via AWS Cognito)
 
 *   **Responsibility**: Implemented using **AWS Cognito** to manage the user directory, user sign-up/sign-in, credential
