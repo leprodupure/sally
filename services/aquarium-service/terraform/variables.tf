@@ -1,8 +1,3 @@
-variable "aws_region" {
-  description = "The AWS region to deploy resources in."
-  type        = string
-}
-
 variable "project_name" {
   description = "The name of the project, used for tagging resources."
   type        = string
@@ -16,15 +11,15 @@ variable "environment" {
 variable "module_name" {
   description = "The name of the module or service, used for resource naming."
   type        = string
-  default     = "core"
+  default     = "aquarium-service"
 }
 
-variable "vpc_cidr" {
-  description = "The CIDR block for the VPC."
+variable "aws_region" {
+  description = "The AWS region to deploy resources in."
   type        = string
 }
 
-variable "db_username" {
-  description = "The master username for the RDS database."
+variable "image_uri" {
+  description = "The ECR image URI for the Lambda function, passed from the CI/CD pipeline."
   type        = string
 }

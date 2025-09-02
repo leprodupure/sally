@@ -4,7 +4,7 @@
 # To use this file, navigate to a module's directory (e.g., infra/core)
 # and run terraform with the -var-file flag using the relative path:
 #
-# terraform apply -var-file="../../environments/production.tfvars"
+# terraform apply -var-file="../../environments/common.tfvars" -var-file="../../environments/production.tfvars"
 
 environment = "production"
 

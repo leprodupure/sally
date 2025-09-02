@@ -1,7 +1,7 @@
 # Terraform variable values for the 'staging' environment.
 #
 # To use this file, run terraform with the -var-file flag:
-# terraform apply -var-file="staging.tfvars"
+# terraform apply -var-file="../../environments/common.tfvars" -var-file="staging.tfvars"
 
 environment = "staging"
 
