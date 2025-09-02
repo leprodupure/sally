@@ -11,7 +11,7 @@ Simple Aquarium Logger (SALly). Used to track aquariums parameters.
 - Display the parameters in charts,
 - Define which species live in each aquarium,
 - Get each species tolerated parameters from web sources,
-- Display thresholds and/or alerts if the parameters are not tolerated.
+- Display in the web page thresholds and alerts if the parameters are not tolerated.
 
 This personal project aims at experimenting cloud technologies on a real use case (logging parameters of my aquariums).
 
