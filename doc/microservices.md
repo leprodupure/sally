@@ -41,27 +41,20 @@ Here is a logical breakdown of services that would support the application's goa
 ### 5. Analysis & Alerting Service
 
 *   **Responsibility**: The "brains" of the system. Compares data from the `Measurement Service` with thresholds from the
-    `Species Catalog Service`. If a parameter is out of range, it generates an alert.
-*   **Interactions**: Reads from the `Measurement`, `Aquarium`, and `Species Catalog` services. Triggers the
-    `Notification Service` when an alert condition is met.
-*   **Database**: **Amazon Aurora PostgreSQL**. Stores any necessary state for the analysis logic, such as alert
-    configurations or last-notification timestamps.
+    `Species Catalog Service`. If a parameter is out of range, it generates and persists an alert.
+*   **Interactions**: Reads from the `Measurement`, `Aquarium`, and `Species Catalog` services. Exposes an API endpoint
+    for the frontend to fetch active alerts.
+*   **Database**: **Amazon Aurora PostgreSQL**. Stores analysis configurations and the generated alerts to be displayed
+    in the UI.
 
-### 6. Notification Service
-
-*   **Responsibility**: A small, focused service that handles the delivery of alerts. It is decoupled from the logic of
-    *detecting* an alert.
-*   **Interactions**: Receives requests from the `Analysis & Alerting Service`. It can query AWS Cognito to retrieve a
-    user's contact information (e.g., email address).
-*   **Database**: **None**. This service is stateless.
-
-### 7. Frontend SPA
+### 6. Frontend SPA
 
 *   **Responsibility**: Provides the user interface for the application. It is a Single Page Application (e.g., built
     with React, Vue, or Angular).
 *   **Interactions**:
     *   Interacts with **AWS Cognito** for authentication.
     *   Makes authenticated API calls to the backend services via **API Gateway**.
+    *   Periodically polls the `Analysis & Alerting Service` for new alerts to display on the web page.
 *   **Deployment**: Hosted as a static website on an **Amazon S3 bucket**, served globally via **Amazon CloudFront**.
 
 ## Inter-Service Communication
@@ -83,35 +76,29 @@ Here is a simple diagram illustrating how these services might interact:
                                        | (Auth Flow)
                                        |
 +----------------+  (API Calls w/ JWT)  +-----------------+
-|                |--------------------->|                 |
+|                |--------------------->|                 |  (Poll for Alerts)
 |  Frontend SPA  |                      |   API Gateway   |
 |                |<---------------------| (w/ Authorizer) |
 +----------------+                      +--------+--------+
                                                  |
                                                  | (Proxied Requests)
                                                  |
-       +-----------------------------------------+-----------------------------------------+
+       +-----------------------------------------+----------------------------+            |
        |                                         |                                         |
        v                                         v                                         v
 +----------------+                       +----------------+                       +----------------+
 | Aquarium Svc   |                       | Measurement Svc|                       | Species Cat. Svc|
 | (Aurora)       |                       | (Aurora)       |                       | (Aurora/JSONB) |
 +-------+--------+                       +-------+--------+                       +--------+-------+
-        ^                                        ^                                        ^
-        | (Reads)                                | (Reads)                                | (Reads)
+        ^ (Reads)                                ^ (Reads)                                ^ (Reads)
+        |                                        |                                        |
         +----------------------------------------+----------------------------------------+
                                                  |
                                                  v
                                        +------------------+
                                        |  Analysis &      |
-                                       |  Alerting Svc    |
+                                       |  Alerting Svc    |<------------------------------+
                                        |  (Aurora)        |
-                                       +---------+--------+
-                                                 | (Triggers Alert)
-                                                 v
-                                       +------------------+
-                                       | Notification Svc |
-                                       | (Stateless)      |
                                        +------------------+
 ```
 
