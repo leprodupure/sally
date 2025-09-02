@@ -6,7 +6,8 @@ This is not a runtime microservice but a foundational infrastructure stack respo
 
 *   **Responsibility**: Manages and deploys the core, shared infrastructure that all other services depend on. This includes:
     *   The **Amazon Aurora PostgreSQL Cluster**.
-    *   The main **API Gateway** instance.
+    *   The main **API Gateway** instance and its Cognito Authorizer.
+    *   The **AWS Cognito User Pool and App Client** for authentication.
     *   Core networking components (e.g., VPC, subnets).
     *   The S3 bucket and CloudFront distribution for the **Frontend SPA**.
 *   **Interactions**: This stack is deployed first. It provides outputs (like the database cluster ARN, VPC ID, API Gateway ID) that are consumed by the individual microservice deployment stacks.
@@ -17,19 +18,7 @@ This is not a runtime microservice but a foundational infrastructure stack respo
 > project without incurring costs for the first 12 months, replace `Amazon Aurora PostgreSQL` with a standard
 > `Amazon RDS for PostgreSQL` instance using a free-tier eligible instance class (e.g., `db.t3.micro`).
 
-### 1. Auth Service (Implemented via AWS Cognito)
-
-*   **Responsibility**: Implemented using **AWS Cognito** to manage the user directory, user sign-up/sign-in, credential
-    validation, and the issuance of JWT tokens. This offloads the heavy lifting of authentication to a secure, managed
-    AWS service.
-* **Interactions**:
-    *   The **Frontend SPA** will interact directly with Cognito (e.g., via the AWS Amplify library) for login, sign-up,
-        and password recovery.
-    *   **API Gateway** will use a Cognito Authorizer to automatically validate tokens on incoming requests, securing the
-        backend microservices.
-*   **Database**: None. User data is managed securely within AWS Cognito.
-
-### 2. Aquarium Service
+### 1. Aquarium Service
 
 *   **Responsibility**: Manages `Aquarium` entities (CRUD operations). It associates aquariums with a specific user,
     identified by the user ID from the Cognito JWT token.
@@ -37,7 +26,7 @@ This is not a runtime microservice but a foundational infrastructure stack respo
 *   **Database**: **Amazon Aurora PostgreSQL**. Perfect for handling the relational data of aquariums and their
     relationship to users.
 
-### 3. Measurement Service
+### 2. Measurement Service
 
 *   **Responsibility**: A high-throughput service for ingesting and storing time-series parameter readings (e.g.,
     `aquarium_id`, `parameter_type`, `value`, `timestamp`).
@@ -46,7 +35,7 @@ This is not a runtime microservice but a foundational infrastructure stack respo
 *   **Database**: **Amazon Aurora PostgreSQL**. For consolidation, time-series data will be stored in a structured table.
     This simplifies the stack, though a dedicated time-series database could be a future optimization.
 
-### 4. Species Catalog Service
+### 3. Species Catalog Service
 
 *   **Responsibility**: Acts as a knowledge base for aquatic species, storing information like tolerated water parameters
     (pH, GH, temp). Includes logic to fetch/update this data from external web sources.
@@ -55,7 +44,7 @@ This is not a runtime microservice but a foundational infrastructure stack respo
 *   **Database**: **Amazon Aurora PostgreSQL**. Leverages PostgreSQL's powerful `JSONB` data type to store flexible,
     semi-structured documents for each species (common names, aliases, parameters).
 
-### 5. Analysis & Alerting Service
+### 4. Analysis & Alerting Service
 
 *   **Responsibility**: The "brains" of the system. Compares data from the `Measurement Service` with thresholds from the
     `Species Catalog Service`. If a parameter is out of range, it generates and persists an alert.
@@ -64,7 +53,7 @@ This is not a runtime microservice but a foundational infrastructure stack respo
 *   **Database**: **Amazon Aurora PostgreSQL**. Stores analysis configurations and the generated alerts to be displayed
     in the UI.
 
-### 6. Frontend SPA
+### 5. Frontend SPA
 
 *   **Responsibility**: Provides the user interface for the application. It is a Single Page Application (e.g., built
     with React, Vue, or Angular).
