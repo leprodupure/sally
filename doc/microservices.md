@@ -55,6 +55,22 @@ Here is a logical breakdown of services that would support the application's goa
     user's contact information (e.g., email address).
 *   **Database**: **None**. This service is stateless.
 
+### 7. Frontend SPA
+
+*   **Responsibility**: Provides the user interface for the application. It is a Single Page Application (e.g., built
+    with React, Vue, or Angular).
+*   **Interactions**:
+    *   Interacts with **AWS Cognito** for authentication.
+    *   Makes authenticated API calls to the backend services via **API Gateway**.
+*   **Deployment**: Hosted as a static website on an **Amazon S3 bucket**, served globally via **Amazon CloudFront**.
+
+## Inter-Service Communication
+
+Communication between services primarily follows a synchronous, API-driven pattern. The `API Gateway` acts as the
+single entry point, routing requests to the appropriate backend service. For asynchronous tasks, such as triggering an
+analysis run after a new measurement, an event-based pattern using services like **Amazon SNS** or **EventBridge** can
+be used to decouple services and improve resilience.
+
 ## How They Fit Together
 
 Here is a simple diagram illustrating how these services might interact:

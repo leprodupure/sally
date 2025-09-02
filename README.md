@@ -22,6 +22,27 @@ Application hosted on a S3 bucket.
 
 The project is divided in microservices.
 
+### Repository Structure
+
+To simplify development and deployment, this project uses a **monorepo** structure. All microservices, shared libraries,
+and infrastructure code reside in a single Git repository. This approach provides several key advantages:
+
+-   **Atomic Commits**: Changes that span multiple services (e.g., an API contract change) can be made in a single
+    commit and pull request, ensuring consistency.
+-   **Simplified Dependency Management**: All services use a single, consistent version of shared libraries.
+-   **Unified CI/CD**: A single, intelligent pipeline can build, test, and deploy only the services that have changed.
+
+The directory structure looks like this:
+
+```
+sally/
+├── services/
+│   ├── aquarium-service/
+│   └── ... (other microservices)
+└── libs/
+    └── ... (shared code)
+```
+
 Access to the application is controlled by OAuth2.
 
 ### Deployment
@@ -31,6 +52,7 @@ The deployment is ensured by a CI/CD pipeline using GitHub Actions. The pipeline
 - Each microservice is compiled/packaged separately.
 - The infrastructure (Terraform) is stored alongside the code/binary, in the same package/archive.
 - The same package is compiled once, and deployed on all the environments (integration, production).
+- A single, unified pipeline uses path filtering to determine which services have changed and need to be deployed.
 
 Several deployment environments exist:
 
@@ -81,12 +103,6 @@ When a package is published, it is deployed by a second pipeline. This pipeline:
 5. If the tests pass, mark the set of versions of all the packages as ready to production.
 
 If the package is _unstable_, it is deployed on a temporary environment linked to the pull request id.
-
-> [!WARNING]
-> What if the change involves several modules? How do we assign them to the same temporary environment?
->
-> It could be necessary to base the creation of the temp environments on the PR id, or to do a static mapping with the
-> branch names.
 
 If the package is _release candidate_, it is deployed automatically on the staging environment to execute the
 integration tests. If they pass, the package is also deployed on the integration environment for manual testing.
