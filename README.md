@@ -40,16 +40,20 @@ sally/
 │   └── workflows/              # GitHub Actions CI/CD pipelines
 ├── docs/
 │   └── microservices.md
+├── environments/
+│   ├── staging.tfvars
+│   ├── integration.tfvars
+│   └── production.tfvars       # Environment-specific variables
 ├── infra/
 │   └── core/                   # Terraform for shared infrastructure (VPC, DB Cluster, API Gateway)
+├── libs/
+│   └── sally-data-models/      # Example of a shared library for DTOs
 ├── services/
 │   ├── frontend-spa/           # Source code for the Single Page Application
 │   ├── aquarium-service/       # Source code and Terraform for this service
 │   ├── measurement-service/
 │   ├── species-catalog-service/
 │   └── analysis-service/
-├── libs/
-│   └── sally-data-models/      # Example of a shared library for DTOs
 └── README.md
 ```
 
