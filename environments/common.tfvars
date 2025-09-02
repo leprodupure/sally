@@ -5,4 +5,4 @@
 # terraform apply -var-file="../../environments/common.tfvars" -var-file="../../environments/staging.tfvars"
 
 project_name = "sally"
-aws_region   = "us-east-1"
+aws_region   = "eu-west-3" # Paris
