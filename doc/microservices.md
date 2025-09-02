@@ -83,13 +83,13 @@ Here is a simple diagram illustrating how these services might interact:
                                                  |
                                                  | (Proxied Requests)
                                                  |
-       +-----------------------------------------+----------------------------+            |
+       +-----------------------------------------+-----------------------------------------+
        |                                         |                                         |
        v                                         v                                         v
-+----------------+                       +----------------+                       +----------------+
++----------------+                       +----------------+                       +-----------------+
 | Aquarium Svc   |                       | Measurement Svc|                       | Species Cat. Svc|
-| (Aurora)       |                       | (Aurora)       |                       | (Aurora/JSONB) |
-+-------+--------+                       +-------+--------+                       +--------+-------+
+| (Aurora)       |                       | (Aurora)       |                       | (Aurora/JSONB)  |
++-------+--------+                       +-------+--------+                       +--------+--------+
         ^ (Reads)                                ^ (Reads)                                ^ (Reads)
         |                                        |                                        |
         +----------------------------------------+----------------------------------------+
@@ -97,7 +97,7 @@ Here is a simple diagram illustrating how these services might interact:
                                                  v
                                        +------------------+
                                        |  Analysis &      |
-                                       |  Alerting Svc    |<------------------------------+
+                                       |  Alerting Svc    |
                                        |  (Aurora)        |
                                        +------------------+
 ```
