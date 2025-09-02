@@ -2,129 +2,101 @@ Here is a logical breakdown of services that would support the application's goa
 
 ### 1. Auth Service (Implemented via AWS Cognito)
 
-* **Responsibility**: This service will be implemented using **AWS Cognito**. Cognito will manage the user directory, user
-  sign-up/sign-in, credential validation, and the issuance of JWT tokens (fulfilling the OAuth2 requirement). This
-  offloads the heavy lifting of authentication and user management to a secure, managed AWS service.
+*   **Responsibility**: Implemented using **AWS Cognito** to manage the user directory, user sign-up/sign-in, credential
+    validation, and the issuance of JWT tokens. This offloads the heavy lifting of authentication to a secure, managed
+    AWS service.
 * **Interactions**:
     *   The **Frontend SPA** will interact directly with Cognito (e.g., via the AWS Amplify library) for login, sign-up,
         and password recovery.
     *   **API Gateway** will use a Cognito Authorizer to automatically validate tokens on incoming requests, securing the
         backend microservices.
+*   **Database**: None. User data is managed securely within AWS Cognito.
 
 ### 2. Aquarium Service
 
-* **Responsibility**: Manages the core `Aquarium` entities. This includes CRUD (Create, Read, Update, Delete) operations
-  for aquariums. It would also manage the relationship between a user and their aquariums, and which species reside in
-  each aquarium.
-* **Interactions**: The frontend would call this to list or edit aquariums. The Analysis Service would query it to know
-  which species are in a given aquarium.
+*   **Responsibility**: Manages `Aquarium` entities (CRUD operations). It associates aquariums with a specific user,
+    identified by the user ID from the Cognito JWT token.
+*   **Interactions**: Called by the frontend to manage aquariums. Queried by the `Analysis & Alerting Service`.
+*   **Database**: **Amazon Aurora PostgreSQL**. Perfect for handling the relational data of aquariums and their
+    relationship to users.
 
 ### 3. Measurement Service
 
-* **Responsibility**: This is the high-throughput service for the core feature: logging parameters. Its primary job is
-  to receive and store time-series data (e.g., `aquarium_id`, `parameter_type`, `value`, `timestamp`). It should be
-  optimized for fast writes and efficient querying over time ranges for charting.
-* **Interactions**: The frontend would send new parameter readings here. It would also query this service to get data
-  for the charts.
+*   **Responsibility**: A high-throughput service for ingesting and storing time-series parameter readings (e.g.,
+    `aquarium_id`, `parameter_type`, `value`, `timestamp`).
+*   **Interactions**: Receives new parameter readings from the frontend. Queried by the frontend for charting and by the
+    `Analysis & Alerting Service`.
+*   **Database**: **Amazon Aurora PostgreSQL**. For consolidation, time-series data will be stored in a structured table.
+    This simplifies the stack, though a dedicated time-series database could be a future optimization.
 
 ### 4. Species Catalog Service
 
-* **Responsibility**: Acts as a knowledge base for aquatic species. It stores information about different species and,
-  most importantly, their tolerated water parameters (pH, GH, temperature ranges). This service would contain the logic
-  to "get each species tolerated parameters from web sources," likely through a combination of a persistent database and
-  a scheduled job that scrapes/fetches data from external APIs.
-* **Interactions**: The Aquarium Service might use it to validate species names. The Analysis Service will heavily rely
-  on it to fetch the tolerance thresholds for a given species.
+*   **Responsibility**: Acts as a knowledge base for aquatic species, storing information like tolerated water parameters
+    (pH, GH, temp). Includes logic to fetch/update this data from external web sources.
+*   **Interactions**: Queried by the `Aquarium Service` to validate species and by the `Analysis & Alerting Service` to
+    get tolerance thresholds.
+*   **Database**: **Amazon Aurora PostgreSQL**. Leverages PostgreSQL's powerful `JSONB` data type to store flexible,
+    semi-structured documents for each species (common names, aliases, parameters).
 
 ### 5. Analysis & Alerting Service
 
-* **Responsibility**: The "brains" of the system. This service compares the data from the **Measurement Service** with
-  the tolerance data from the **Species Catalog Service**. It can run on a schedule (e.g., every hour) or be triggered
-  by new measurements. If a parameter is out of the tolerated range for any species in an aquarium, it generates an
-  alert.
-* **Interactions**: It reads from the **Measurement Service**, **Aquarium Service**, and **Species Catalog Service**.
-  When an alert condition is met, it would publish an event or call the **Notification Service**.
+*   **Responsibility**: The "brains" of the system. Compares data from the `Measurement Service` with thresholds from the
+    `Species Catalog Service`. If a parameter is out of range, it generates an alert.
+*   **Interactions**: Reads from the `Measurement`, `Aquarium`, and `Species Catalog` services. Triggers the
+    `Notification Service` when an alert condition is met.
+*   **Database**: **Amazon Aurora PostgreSQL**. Stores any necessary state for the analysis logic, such as alert
+    configurations or last-notification timestamps.
 
 ### 6. Notification Service
 
-* **Responsibility**: A small, focused service that handles the delivery of alerts. It's decoupled from the logic of
-  *detecting* an alert. It would take a formatted alert message and send it to the user via their preferred channels (
-  e.g., email, push notification, SMS).
-* **Interactions**: It receives requests from the **Analysis & Alerting Service** to send notifications.
+*   **Responsibility**: A small, focused service that handles the delivery of alerts. It is decoupled from the logic of
+    *detecting* an alert.
+*   **Interactions**: Receives requests from the `Analysis & Alerting Service`. It can query AWS Cognito to retrieve a
+    user's contact information (e.g., email address).
+*   **Database**: **None**. This service is stateless.
 
 ## How They Fit Together
-
-## Database Choices
-
-Following the architectural decision to standardize on a single, highly scalable database technology where feasible,
-**Amazon Aurora PostgreSQL** has been chosen as the primary data store for most microservices. This choice leverages
-Aurora's high performance, availability, and scalability, combined with PostgreSQL's robust feature set and
-extensibility.
-
-Here's how Aurora PostgreSQL will be utilized by each service:
-
-### 1. Auth Service
-*   **Database**: None (Handled by AWS Cognito)
-*   **Rationale**: AWS Cognito provides its own secure, managed user directory. By using Cognito, we eliminate the need
-    for a dedicated database to store user credentials and profiles, simplifying the architecture and enhancing security.
-
-### 2. Aquarium Service
-*   **Database**: Amazon Aurora PostgreSQL
-*   **Rationale**: Perfect for handling the relational data of `Aquarium` entities, their relationships with users, and
-    the species residing within them.
-
-### 3. Measurement Service
-*   **Database**: Amazon Aurora PostgreSQL
-*   **Rationale**: While a dedicated time-series database like Amazon Timestream is often optimal for high-volume
-    time-series data, for the sake of consolidation and leveraging Aurora's capabilities, time-series parameter
-    readings will be stored in a structured table format within Aurora PostgreSQL. This provides a good balance for
-    initial scale and simplifies the technology stack.
-
-### 4. Species Catalog Service
-*   **Database**: Amazon Aurora PostgreSQL
-*   **Rationale**: Will leverage PostgreSQL's powerful `JSONB` data type to store flexible, semi-structured documents
-    for each species, including common names, aliases, and varied parameter thresholds. This allows for rich,
-    searchable species data within a relational context.
-
-### 5. Analysis & Alerting Service
-*   **Database**: Amazon Aurora PostgreSQL
-*   **Rationale**: Will store any necessary state for the analysis and alerting logic, such as alert thresholds,
-    configuration, or last notification timestamps, benefiting from Aurora's reliability.
-
-### 6. Notification Service
-*   **Database**: None
-*   **Rationale**: This service remains stateless, relying on other services (like the Auth Service) for user
-    preferences and the Analysis & Alerting Service for notification content.
 
 Here is a simple diagram illustrating how these services might interact:
 
 ```text
-+----------------+      +---------------+      +----------------+
-|                |----->|               |<---->|                |
-|   Frontend SPA |      |  API Gateway  |      |   Auth Service |
-|                |----->|               |      |                |
-+----------------+      +-------+-------+      +----------------+
-                                |
-          +---------------------+---------------------+
-          |                     |                     |
-+---------v----------+ +--------v---------+ +---------v----------+
-|                    | |                  | |                    |
-|  Aquarium Service  | | Measurement Svc  | | Species Catalog Svc|
-|                    | |                  | |                    |
-+---------+----------+ +--------+---------+ +---------+----------+
-          ^                     ^                     ^
-          |                     |                     |
-          |         +-----------+-----------+         |
-          |         |                       |         |
-          +---------| Analysis & Alerting Svc |---------+
-                    |                       |
-                    +-----------+-----------+
-                                |
-                      +---------v----------+
-                      |                    |
-                      | Notification Svc   |
-                      |                    |
-                      +--------------------+
+                               +---------------+
+                               |  AWS Cognito  |
+                               +-------+-------+
+                                       ^
+                                       | (Auth Flow)
+                                       |
++----------------+  (API Calls w/ JWT)  +-----------------+
+|                |--------------------->|                 |
+|  Frontend SPA  |                      |   API Gateway   |
+|                |<---------------------| (w/ Authorizer) |
++----------------+                      +--------+--------+
+                                                 |
+                                                 | (Proxied Requests)
+                                                 |
+       +-----------------------------------------+-----------------------------------------+
+       |                                         |                                         |
+       v                                         v                                         v
++----------------+                       +----------------+                       +----------------+
+| Aquarium Svc   |                       | Measurement Svc|                       | Species Cat. Svc|
+| (Aurora)       |                       | (Aurora)       |                       | (Aurora/JSONB) |
++-------+--------+                       +-------+--------+                       +--------+-------+
+        ^                                        ^                                        ^
+        | (Reads)                                | (Reads)                                | (Reads)
+        +----------------------------------------+----------------------------------------+
+                                                 |
+                                                 v
+                                       +------------------+
+                                       |  Analysis &      |
+                                       |  Alerting Svc    |
+                                       |  (Aurora)        |
+                                       +---------+--------+
+                                                 | (Triggers Alert)
+                                                 v
+                                       +------------------+
+                                       | Notification Svc |
+                                       | (Stateless)      |
+                                       +------------------+
 ```
 
 This microservice architecture provides a clear separation of concerns, allowing you to develop, deploy, and scale each
