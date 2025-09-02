@@ -1,5 +1,17 @@
 Here is a logical breakdown of services that would support the application's goals:
 
+### Core Infrastructure
+
+This is not a runtime microservice but a foundational infrastructure stack responsible for deploying shared resources.
+
+*   **Responsibility**: Manages and deploys the core, shared infrastructure that all other services depend on. This includes:
+    *   The **Amazon Aurora PostgreSQL Cluster**.
+    *   The main **API Gateway** instance.
+    *   Core networking components (e.g., VPC, subnets).
+    *   The S3 bucket and CloudFront distribution for the **Frontend SPA**.
+*   **Interactions**: This stack is deployed first. It provides outputs (like the database cluster ARN, VPC ID, API Gateway ID) that are consumed by the individual microservice deployment stacks.
+*   **Deployment**: Managed via Terraform in a dedicated directory (`infra/core/`).
+
 ### 1. Auth Service (Implemented via AWS Cognito)
 
 *   **Responsibility**: Implemented using **AWS Cognito** to manage the user directory, user sign-up/sign-in, credential
@@ -55,7 +67,6 @@ Here is a logical breakdown of services that would support the application's goa
     *   Interacts with **AWS Cognito** for authentication.
     *   Makes authenticated API calls to the backend services via **API Gateway**.
     *   Periodically polls the `Analysis & Alerting Service` for new alerts to display on the web page.
-*   **Deployment**: Hosted as a static website on an **Amazon S3 bucket**, served globally via **Amazon CloudFront**.
 
 ## Inter-Service Communication
 
@@ -65,6 +76,9 @@ analysis run after a new measurement, an event-based pattern using services like
 be used to decouple services and improve resilience.
 
 ## How They Fit Together
+
+The diagram below illustrates the runtime interactions between the services. The `Core Infrastructure` is a deployment-time
+concept and is therefore not shown.
 
 Here is a simple diagram illustrating how these services might interact:
 
@@ -83,7 +97,7 @@ Here is a simple diagram illustrating how these services might interact:
                                                  |
                                                  | (Proxied Requests)
                                                  |
-       +-----------------------------------------+-----------------------------------------+
+       +-----------------------------------------+----------------------------+            |
        |                                         |                                         |
        v                                         v                                         v
 +----------------+                       +----------------+                       +-----------------+
@@ -94,10 +108,10 @@ Here is a simple diagram illustrating how these services might interact:
         |                                        |                                        |
         +----------------------------------------+----------------------------------------+
                                                  |
-                                                 v
+                                                 v                                        |
                                        +------------------+
                                        |  Analysis &      |
-                                       |  Alerting Svc    |
+                                       |  Alerting Svc    |<------------------------------+
                                        |  (Aurora)        |
                                        +------------------+
 ```

@@ -36,11 +36,21 @@ The directory structure looks like this:
 
 ```
 sally/
+├── .github/
+│   └── workflows/              # GitHub Actions CI/CD pipelines
+├── docs/
+│   └── microservices.md
+├── infra/
+│   └── core/                   # Terraform for shared infrastructure (VPC, DB Cluster, API Gateway)
 ├── services/
-│   ├── aquarium-service/
-│   └── ... (other microservices)
-└── libs/
-    └── ... (shared code)
+│   ├── frontend-spa/           # Source code for the Single Page Application
+│   ├── aquarium-service/       # Source code and Terraform for this service
+│   ├── measurement-service/
+│   ├── species-catalog-service/
+│   └── analysis-service/
+├── libs/
+│   └── sally-data-models/      # Example of a shared library for DTOs
+└── README.md
 ```
 
 Access to the application is controlled by OAuth2.
