@@ -33,7 +33,7 @@ jobs:
               - 'services/aquarium-service/**'
             # Add other services here as they are created
 
-  check-docker-exists:
+  check-files-exists:
     needs: detect-changes
     strategy:
       matrix:
@@ -42,16 +42,35 @@ jobs:
     if: needs.detect-changes.outputs.services != '[]'
     runs-on: ubuntu-latest
     outputs:
-      docker-exists: ${{ hashFiles(format('services/${0}/Dockerfile', inputs.service-name )) != '' }}
+      docker-exists: ${{ steps.files-exists.outputs.docker }}
+      terraform-exists: ${{ steps.files-exists.outputs.terraform }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check if Dockerfile and terraform/ exists
+        id: files-exists
+        run: |
+          if [ -f "services/${{ inputs.service-name }}/Dockerfile" ]; then
+            echo "docker=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "docker=false" >> "$GITHUB_OUTPUT"
+          fi
+          
+          if [ -d "services/${{ inputs.service-name }}/terraform" ]; then
+            echo "terraform=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "terraform=false" >> "$GITHUB_OUTPUT"
+          fi
 
   # This job builds and deploys each changed service
   build-docker:
-    needs: [detect-changes, check-docker-exists]
+    needs: [detect-changes, check-files-exists]
     strategy:
       matrix:
         service: ${{ fromJson(needs.detect-changes.outputs.services) }}
     # This job builds the Docker image if a Dockerfile exists
-    if: needs.detect-changes.outputs.services != '[]' && needs.check-docker-exists.outputs.docker-exists
+    if: needs.detect-changes.outputs.services != '[]' && needs.check-files-exists.outputs.docker-exists == 'true'
     uses: ./.github/workflows/reusable-build-image.yml
     with:
       service-name: ${{ matrix.service }}
@@ -70,8 +89,8 @@ jobs:
     strategy:
       matrix:
         service: ${{ fromJson(needs.detect-changes.outputs.services) }}
-    # This job builds the Docker image if a Dockerfile exists
-    if: needs.detect-changes.outputs.services != '[]'
+    # This job builds the Docker image if terraform/ exists
+    if: needs.detect-changes.outputs.services != '[]' && needs.check-files-exists.outputs.terraform-exists == 'true'
     uses: ./.github/workflows/reusable-deploy-terraform.yml
     with:
       service-name: ${{ strategy.matrix.service }}
