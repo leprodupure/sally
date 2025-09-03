@@ -28,9 +28,19 @@ jobs:
       contents: read
       id-token: write # Required for OIDC authentication with AWS
 
+    if: ${{ exists(format('services/${0}/Dockerfile', service-name )) }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - run: |
+          if [ -f "services/${{ service-name }}/Dockerfile" ]; then
+            echo "File exists"
+          else
+            echo "File does not exist"
+            exit 1
+          fi
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4

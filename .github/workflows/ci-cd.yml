@@ -40,7 +40,7 @@ jobs:
       matrix:
         service: ${{ fromJson(needs.detect-changes.outputs.services) }}
     # This job builds the Docker image if a Dockerfile exists
-    if: needs.detect-changes.outputs.services != '[]' && exists(format('services/{0}/Dockerfile', matrix.service))
+    if: needs.detect-changes.outputs.services != '[]'
     uses: ./.github/workflows/reusable-build-image.yml
     with:
       service-name: ${{ matrix.service }}
@@ -54,10 +54,10 @@ jobs:
       matrix:
         service: ${{ fromJson(needs.detect-changes.outputs.services) }}
     # This job builds the Docker image if a Dockerfile exists
-    if: needs.detect-changes.outputs.services != '[]' && exists(format('services/{0}/terraform', matrix.service))
+    if: false && needs.detect-changes.outputs.services != '[]'
     uses: ./.github/workflows/reusable-deploy-terraform.yml
     with:
-      service-name: ${{ matrix.service }}
+      service-name: ${{ strategy.matrix.service }}
       # Deploy to a temporary environment for PRs, otherwise deploy to staging
       environment: ${{ github.event_name == 'pull_request' && 'temp' || 'staging' }}
       # Pass the image URI from the build job if it ran
