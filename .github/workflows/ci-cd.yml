@@ -42,8 +42,8 @@ jobs:
     if: needs.detect-changes.outputs.services != '[]'
     runs-on: ubuntu-latest
     outputs:
-      docker-exists: ${{ steps.files-exists.outputs.docker }}
-      terraform-exists: ${{ steps.files-exists.outputs.terraform }}
+      docker: ${{ steps.files-exist.outputs.docker }}
+      terraform: ${{ steps.files-exist.outputs.terraform }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -70,7 +70,7 @@ jobs:
       matrix:
         service: ${{ fromJson(needs.detect-changes.outputs.services) }}
     # This job builds the Docker image if a Dockerfile exists
-    if: needs.detect-changes.outputs.services != '[]' && needs.check-files-exists.outputs.docker-exists == 'true'
+    if: needs.detect-changes.outputs.services != '[]' && needs.check-files-exist.outputs.docker == 'true'
     uses: ./.github/workflows/reusable-build-image.yml
     with:
       service-name: ${{ matrix.service }}
@@ -82,7 +82,7 @@ jobs:
       id-token: write # Required for OIDC authentication with AWS
 
   deploy-terraform:
-    needs: [detect-changes, build-docker]
+    needs: [detect-changes, check-files-exists, build-docker]
     permissions:
       contents: read
       id-token: write # Required for OIDC authentication with AWS
@@ -90,7 +90,7 @@ jobs:
       matrix:
         service: ${{ fromJson(needs.detect-changes.outputs.services) }}
     # This job builds the Docker image if terraform/ exists
-    if: needs.detect-changes.outputs.services != '[]' && needs.check-files-exists.outputs.terraform-exists == 'true'
+    if: needs.detect-changes.outputs.services != '[]' && needs.check-files-exist.outputs.terraform == 'true'
     uses: ./.github/workflows/reusable-deploy-terraform.yml
     with:
       service-name: ${{ strategy.matrix.service }}
