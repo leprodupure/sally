@@ -14,6 +14,8 @@ resource "aws_secretsmanager_secret_version" "db_credentials" {
   secret_string = jsonencode({
     username = var.db_username
     password = random_password.db_password.result
+    url      = aws_db_instance.main.address
+    db_name  = var.project_name
   })
 }
 
