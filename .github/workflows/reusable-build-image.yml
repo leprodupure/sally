@@ -28,15 +28,14 @@ jobs:
       contents: read
       id-token: write # Required for OIDC authentication with AWS
 
-    # Check if the Dockerfile exists.
-    if: ${{ always() && hashFiles(format('services/${0}/Dockerfile', inputs.service-name )) != '' }}
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
+        # Check if the Dockerfile exists.
+        if: ${{ hashFiles(format('services/${0}/Dockerfile', inputs.service-name )) != '' }}
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -45,12 +44,18 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
+        # Check if the Dockerfile exists.
+        if: ${{ hashFiles(format('services/${0}/Dockerfile', inputs.service-name )) != '' }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        # Check if the Dockerfile exists.
+        if: ${{ hashFiles(format('services/${0}/Dockerfile', inputs.service-name )) != '' }}
 
       - name: Build and push Docker image
         id: build-and-push
+        # Check if the Dockerfile exists.
+        if: ${{ hashFiles(format('services/${0}/Dockerfile', inputs.service-name )) != '' }}
         uses: docker/build-push-action@v5
         with:
           context: ./services/${{ inputs.service-name }}
