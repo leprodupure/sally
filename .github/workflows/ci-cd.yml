@@ -53,11 +53,14 @@ jobs:
 
   deploy-terraform:
     needs: [detect-changes, build-docker]
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC authentication with AWS
     strategy:
       matrix:
         service: ${{ fromJson(needs.detect-changes.outputs.services) }}
     # This job builds the Docker image if a Dockerfile exists
-    if: false && needs.detect-changes.outputs.services != '[]'
+    if: needs.detect-changes.outputs.services != '[]'
     uses: ./.github/workflows/reusable-deploy-terraform.yml
     with:
       service-name: ${{ strategy.matrix.service }}

@@ -33,6 +33,7 @@ jobs:
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
+        if: ${{ hashFiles(format('services/${0}/terraform/**', inputs.service-name )) != '' }}
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -40,14 +41,17 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+        if: ${{ hashFiles(format('services/${0}/terraform/**', inputs.service-name )) != '' }}
         with:
           terraform_wrapper: false
 
       - name: Terraform Init
         run: terraform init
+        if: ${{ hashFiles(format('services/${0}/terraform/**', inputs.service-name )) != '' }}
         working-directory: ./services/${{ inputs.service-name }}/terraform
 
       - name: Terraform Plan
+        if: ${{ hashFiles(format('services/${0}/terraform/**', inputs.service-name )) != '' }}
         run: |
           terraform plan \
             -no-color \
