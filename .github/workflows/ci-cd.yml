@@ -47,6 +47,8 @@ jobs:
       # For PRs, create a unique image tag. For main, use the commit SHA.
       image-tag: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.sha }}
     secrets: inherit
+    permissions:
+      id-token: write # Required for OIDC authentication with AWS
 
   deploy-terraform:
     needs: [detect-changes, build-docker]
