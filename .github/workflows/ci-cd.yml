@@ -33,14 +33,25 @@ jobs:
               - 'services/aquarium-service/**'
             # Add other services here as they are created
 
-  # This job builds and deploys each changed service
-  build-docker:
+  check-docker-exists:
     needs: detect-changes
     strategy:
       matrix:
         service: ${{ fromJson(needs.detect-changes.outputs.services) }}
     # This job builds the Docker image if a Dockerfile exists
     if: needs.detect-changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    outputs:
+      docker-exists: ${{ hashFiles(format('services/${0}/Dockerfile', inputs.service-name )) != '' }}
+
+  # This job builds and deploys each changed service
+  build-docker:
+    needs: [detect-changes, check-docker-exists]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    # This job builds the Docker image if a Dockerfile exists
+    if: needs.detect-changes.outputs.services != '[]' && needs.check-docker-exists.outputs.docker-exists
     uses: ./.github/workflows/reusable-build-image.yml
     with:
       service-name: ${{ matrix.service }}
