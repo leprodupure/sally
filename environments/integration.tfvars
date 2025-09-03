@@ -1,10 +1,10 @@
 # Terraform variable values for the 'integration' environment.
 # These variables can be shared across multiple modules.
 #
-# To use this file, navigate to a module's directory (e.g., infra/core)
+# To use this file, navigate to a module's directory (e.g., services/core-infra/terraform)
 # and run terraform with the -var-file flag using the relative path:
 #
-# terraform apply -var-file="../../environments/common.tfvars" -var-file="../../environments/integration.tfvars"
+# terraform apply -var-file="../../../environments/common.tfvars" -var-file="../../../environments/integration.tfvars"
 
 environment = "integration"
 

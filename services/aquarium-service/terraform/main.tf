@@ -8,7 +8,7 @@ terraform {
 }
 
 # --- Data Sources ---
-# Use a remote state to get outputs from the core infrastructure stack
+# Use a remote state to get outputs from the core core-infra stack
 data "terraform_remote_state" "core" {
   backend = "s3" # This should be configured to your actual remote state backend
   config = {
