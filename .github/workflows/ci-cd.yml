@@ -51,13 +51,13 @@ jobs:
       - name: Check if Dockerfile and terraform/ exists
         id: files-exist
         run: |
-          if [ -f "services/${{ inputs.service-name }}/Dockerfile" ]; then
+          if [ -f "services/${{ matrix.service }}/Dockerfile" ]; then
             echo "docker=true" >> "$GITHUB_OUTPUT"
           else
             echo "docker=false" >> "$GITHUB_OUTPUT"
           fi
           
-          if [ -d "services/${{ inputs.service-name }}/terraform" ]; then
+          if [ -d "services/${{ matrix.service }}/terraform" ]; then
             echo "terraform=true" >> "$GITHUB_OUTPUT"
           else
             echo "terraform=false" >> "$GITHUB_OUTPUT"
