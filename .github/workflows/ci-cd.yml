@@ -1,0 +1,67 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'services/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # This job determines which services have changed
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.filter.outputs.changes }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect changed services
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            aquarium-service:
+              - 'services/aquarium-service/**'
+            # Add other services here as they are created
+            # measurement-service:
+            #   - 'services/measurement-service/**'
+            # species-catalog-service:
+            #   - 'services/species-catalog-service/**'
+            # analysis-service:
+            #   - 'services/analysis-service/**'
+
+  # This job deploys the core infrastructure if it changes
+  deploy-core-infra:
+    needs: detect-changes
+    # In a real scenario, you would add a path filter here for the 'infra/core' directory
+    # For now, we assume it's managed separately or deployed on every main branch push.
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/reusable-deploy-infra.yml
+    with:
+      environment: staging # Or based on your strategy
+      working-directory: ./infra/core
+    secrets: inherit
+
+  # This job is a "matrix" that will run for each service identified in the `detect-changes` job
+  deploy-services:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != '[]'
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+      fail-fast: false # Allow other service deployments to continue if one fails
+    uses: ./.github/workflows/reusable-deploy-service.yml
+    with:
+      service-name: ${{ matrix.service }}
+      # Deploy to a temporary environment for PRs, otherwise deploy to staging
+      environment: ${{ github.event_name == 'pull_request' && 'temp' || 'staging' }}
+      # For PRs, create a unique image tag. For main, use the commit SHA.
+      image-tag: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.sha }}
+    secrets: inherit
