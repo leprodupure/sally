@@ -3,17 +3,12 @@ name: Reusable - Deploy Terraform
 on:
   workflow_call:
     inputs:
-      service-name:
+      service-path:
         required: true
         type: string
       environment:
         required: true
         type: string
-      image-uri:
-        description: "Optional ECR image URI to pass to Terraform"
-        required: false
-        type: string
-        default: ""
     secrets:
       AWS_ACCESS_KEY_ID:
         required: true
@@ -33,7 +28,6 @@ jobs:
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
-        if: ${{ hashFiles(format('services/${0}/terraform/**', inputs.service-name )) != '' }}
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -41,24 +35,21 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
-        if: ${{ hashFiles(format('services/${0}/terraform/**', inputs.service-name )) != '' }}
         with:
           terraform_wrapper: false
 
       - name: Terraform Init
         run: terraform init
-        if: ${{ hashFiles(format('services/${0}/terraform/**', inputs.service-name )) != '' }}
-        working-directory: ./services/${{ inputs.service-name }}/terraform
+        working-directory: ./${{ inputs.service-path }}/terraform
 
       - name: Terraform Plan
-        if: ${{ hashFiles(format('services/${0}/terraform/**', inputs.service-name )) != '' }}
         run: |
           terraform plan \
             -no-color \
             -var-file="../../environments/common.tfvars" \
             -var-file="../../environments/${{ inputs.environment }}.tfvars" \
             ${{ inputs.image-uri != '' && format('-var="image_uri=%s"', inputs.image-uri) || '' }}
-        working-directory: ./services/${{ inputs.service-name }}/terraform
+        working-directory: ./${{ inputs.service-path }}/terraform
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
@@ -67,4 +58,4 @@ jobs:
             -var-file="../../environments/common.tfvars" \
             -var-file="../../environments/${{ inputs.environment }}.tfvars" \
             ${{ inputs.image-uri != '' && format('-var="image_uri=%s"', inputs.image-uri) || '' }}
-        working-directory: ./services/${{ inputs.service-name }}/terraform
+        working-directory: ./${{ inputs.service-path }}/terraform
