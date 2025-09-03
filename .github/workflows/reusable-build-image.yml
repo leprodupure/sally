@@ -28,7 +28,8 @@ jobs:
       contents: read
       id-token: write # Required for OIDC authentication with AWS
 
-    if: ${{ exists(format('services/${0}/Dockerfile', inputs.service-name )) }}
+    # Check if the Dockerfile exists.
+    if: ${{ hashFiles(format('services/${0}/Dockerfile', inputs.service-name )) != '' }}
 
     steps:
       - name: Checkout code
