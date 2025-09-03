@@ -60,7 +60,7 @@ jobs:
   # --- Phase 1: Build & Package ---
   # This job runs for each changed service, builds it, packages it, and uploads the package to S3.
   build-and-package:
-    needs: [detect-changes]
+    needs: [detect-changes, deploy-global-infra]
     strategy:
       matrix:
         service: ${{ fromJson(needs.detect-changes.outputs.services) }}
