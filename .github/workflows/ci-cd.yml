@@ -48,6 +48,7 @@ jobs:
       image-tag: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.sha }}
     secrets: inherit
     permissions:
+      contents: read
       id-token: write # Required for OIDC authentication with AWS
 
   deploy-terraform:
