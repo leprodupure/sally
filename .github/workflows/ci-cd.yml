@@ -30,7 +30,7 @@ jobs:
         with:
           filters: |
             global-infra:
-              - 'global-infra/**'
+              - 'global-infra/infra/**'
 
       - name: Detect changed services
         uses: dorny/paths-filter@v3
@@ -53,7 +53,7 @@ jobs:
       id-token: write # Required for OIDC authentication with AWS
     uses: ./.github/workflows/reusable-deploy-terraform.yml
     with:
-      service-path: global-infra # This is not a service, but the path to the module
+      service-path: global-infra/infra # This is not a service, but the path to the module
       environment: global # This is a placeholder, as this module is env-agnostic
     secrets: inherit
 
