@@ -1,25 +1,24 @@
 #!/bin/bash
 
-# This script packages the service's deployment artifacts into a single archive.
-# It combines the Terraform code and the Lambda deployment package (lambda.zip).
+# This is a shared script to package a service's deployment artifacts into a single archive.
+# It combines the Terraform code and the Lambda deployment package.
+# This script is intended to be called from within a specific service's directory.
 
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
 # --- Configuration ---
 TERRAFORM_DIR="terraform"
-LAMBDA_ARCHIVE="lambda.zip"
+SERVICE_NAME=$(basename "$PWD")
+LAMBDA_ARCHIVE="${SERVICE_NAME}-lambda.zip"
 STAGING_DIR="package_staging"
-
-# Get the service name from the parent directory name to use in the archive name.
-SERVICE_NAME=$(basename "$(dirname "$(realpath "$0")")")
 PACKAGE_ARCHIVE="${SERVICE_NAME}-package.zip"
 
 echo "--- Starting packaging for ${SERVICE_NAME} ---"
 
 # 1. Validate that the required artifacts exist
-if [ ! -d "$TERRAFORM_DIR" ] || [ ! -f "$LAMBDA_ARCHIVE" ]; then
-  echo "Error: Missing required artifacts. Ensure the '$TERRAFORM_DIR' directory and '$LAMBDA_ARCHIVE' file exist."
+if [ ! -d "$TERRAFORM_DIR" ]; then
+  echo "Error: Missing required artifact '$TERRAFORM_DIR'. Ensure the '$TERRAFORM_DIR' directory exists."
   echo "Hint: You may need to run the build.sh script first to create '$LAMBDA_ARCHIVE'."
   exit 1
 fi
