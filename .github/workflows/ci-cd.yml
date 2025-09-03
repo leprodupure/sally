@@ -7,6 +7,7 @@ on:
   pull_request:
     paths:
       - 'services/**'
+      - 'global-infra/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -17,14 +18,23 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      services: ${{ steps.filter.outputs.changes }}
+      global-infra: ${{ steps.global-infra-filter.outputs.changes }}
+      services: ${{ steps.services-filter.outputs.changes }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Detect changed global infrastructure
+        uses: dorny/paths-filter@v3
+        id: global-infra-filter
+        with:
+          filters: |
+            global-infra:
+              - 'global-infra/**'
+
       - name: Detect changed services
         uses: dorny/paths-filter@v3
-        id: filter
+        id: services-filter
         with:
           filters: |
             core-infra:
@@ -33,69 +43,79 @@ jobs:
               - 'services/aquarium-service/**'
             # Add other services here as they are created
 
-  check-files-exist:
-    needs: detect-changes
+  # --- Initial Job: Deploy Global Infrastructure ---
+  # This job deploys shared resources like the S3 package registry.
+  deploy-global-infra:
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.global-infra != '[]'
+    uses: ./.github/workflows/reusable-deploy-terraform.yml
+    with:
+      service-name: global-infra # This is not a service, but the path to the module
+      environment: global # This is a placeholder, as this module is env-agnostic
+    secrets: inherit
+
+  # --- Phase 1: Build & Package ---
+  # This job runs for each changed service, builds it, packages it, and uploads the package to S3.
+  build-and-package:
+    needs: [detect-changes]
     strategy:
       matrix:
         service: ${{ fromJson(needs.detect-changes.outputs.services) }}
-    # This job builds the Docker image if a Dockerfile exists
     if: needs.detect-changes.outputs.services != '[]'
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC authentication with AWS
     runs-on: ubuntu-latest
-    outputs:
-      docker: ${{ steps.files-exist.outputs.docker }}
-      terraform: ${{ steps.files-exist.outputs.terraform }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Check if Dockerfile and terraform/ exists
-        id: files-exist
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-3 # Should match your common.tfvars
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run build.sh
         run: |
-          if [ -f "services/${{ matrix.service }}/Dockerfile" ]; then
-            echo "docker=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "docker=false" >> "$GITHUB_OUTPUT"
-          fi
-          
-          if [ -d "services/${{ matrix.service }}/terraform" ]; then
-            echo "terraform=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "terraform=false" >> "$GITHUB_OUTPUT"
-          fi
+          chmod +x ../../scripts/build.sh
+          ../../scripts/build.sh
+        working-directory: ./services/${{ matrix.service }}
 
-  # This job builds and deploys each changed service
-  build-docker:
-    needs: [detect-changes, check-files-exist]
-    strategy:
-      matrix:
-        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
-    # This job builds the Docker image if a Dockerfile exists
-    if: needs.detect-changes.outputs.services != '[]' && needs.check-files-exist.outputs.docker == 'true'
-    uses: ./.github/workflows/reusable-build-image.yml
-    with:
-      service-name: ${{ matrix.service }}
-      # For PRs, create a unique image tag. For main, use the commit SHA.
-      image-tag: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.sha }}
-    secrets: inherit
-    permissions:
-      contents: read
-      id-token: write # Required for OIDC authentication with AWS
+      - name: Run package.sh
+        run: |
+          chmod +x ../../scripts/package.sh
+          ../../scripts/package.sh
+        working-directory: ./services/${{ matrix.service }}
 
-  deploy-terraform:
-    needs: [detect-changes, check-files-exist, build-docker]
-    permissions:
-      contents: read
-      id-token: write # Required for OIDC authentication with AWS
-    strategy:
-      matrix:
-        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
-    # This job builds the Docker image if terraform/ exists
-    if: needs.detect-changes.outputs.services != '[]' && needs.check-files-exist.outputs.terraform == 'true'
-    uses: ./.github/workflows/reusable-deploy-terraform.yml
-    with:
-      service-name: ${{ strategy.matrix.service }}
-      # Deploy to a temporary environment for PRs, otherwise deploy to staging
-      environment: ${{ github.event_name == 'pull_request' && 'temp' || 'staging' }}
-      # Pass the image URI from the build job if it ran
-      image-uri: ${{ needs.build.outputs.image_uri || '' }}
-    secrets: inherit
+      - name: Upload package to S3 Registry
+        run: |
+          PACKAGE_NAME="${{ matrix.service }}-package.zip"
+          S3_BUCKET="sally-package-registry"
+          S3_KEY="packages/${{ matrix.service }}-${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || 'rc' }}.zip"
+          aws s3 cp "${PACKAGE_NAME}" "s3://${S3_BUCKET}/${S3_KEY}"
+        working-directory: ./services/${{ matrix.service }}
+
+  # --- Phase 2: Deploy ---
+  # This job runs after all packages are built. It would download them and deploy.
+  deploy-all:
+    needs: [build-and-package]
+    if: always() && needs.build-and-package.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder for Deployment Logic
+        run: |
+          echo "Starting deployment of all services..."
+          echo "This step would download the packages for commit ${{ github.sha }} from the S3 registry."
+          echo "It would then unzip them and run 'terraform apply' in the correct order."
+          echo "For now, this is a placeholder."
+          # Example:
+          # aws s3 cp s3://<bucket>/packages/core-infra/${{ github.sha }}/core-infra-package.zip .
+          # unzip core-infra-package.zip
+          # cd terraform && terraform apply ...
