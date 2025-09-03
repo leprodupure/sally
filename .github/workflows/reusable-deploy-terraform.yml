@@ -1,4 +1,4 @@
-name: Reusable - Deploy Service
+name: Reusable - Deploy Terraform
 
 on:
   workflow_call:
@@ -9,9 +9,11 @@ on:
       environment:
         required: true
         type: string
-      image-tag:
-        required: true
+      image-uri:
+        description: "Optional ECR image URI to pass to Terraform"
+        required: false
         type: string
+        default: ""
     secrets:
       AWS_ACCESS_KEY_ID:
         required: true
@@ -29,29 +31,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name. Configure AWS Credentials
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-3 # Should match your common.tfvars
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and push Docker image
-        id: build-and-push
-        uses: docker/build-push-action@v5
-        with:
-          context: ./services/${{ inputs.service-name }}
-          push: true
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{ inputs.service-name }}:${{ inputs.image-tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -59,31 +44,23 @@ jobs:
           terraform_wrapper: false
 
       - name: Terraform Init
-        id: init
         run: terraform init
         working-directory: ./services/${{ inputs.service-name }}/terraform
 
-      - name: Terraform Validate
-        id: validate
-        run: terraform validate -no-color
-        working-directory: ./services/${{ inputs.service-name }}/terraform
-
       - name: Terraform Plan
-        id: plan
         run: |
           terraform plan \
             -no-color \
             -var-file="../../environments/common.tfvars" \
             -var-file="../../environments/${{ inputs.environment }}.tfvars" \
-            -var="image_uri=${{ steps.login-ecr.outputs.registry }}/${{ inputs.service-name }}:${{ inputs.image-tag }}"
+            ${{ inputs.image-uri != '' && format('-var="image_uri=%s"', inputs.image-uri) || '' }}
         working-directory: ./services/${{ inputs.service-name }}/terraform
 
       - name: Terraform Apply
-        id: apply
         if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
         run: |
           terraform apply -auto-approve \
             -var-file="../../environments/common.tfvars" \
             -var-file="../../environments/${{ inputs.environment }}.tfvars" \
-            -var="image_uri=${{ steps.login-ecr.outputs.registry }}/${{ inputs.service-name }}:${{ inputs.image-tag }}"
+            ${{ inputs.image-uri != '' && format('-var="image_uri=%s"', inputs.image-uri) || '' }}
         working-directory: ./services/${{ inputs.service-name }}/terraform

@@ -27,41 +27,42 @@ jobs:
         id: filter
         with:
           filters: |
+            core-infra:
+              - 'services/core-infra/**'
             aquarium-service:
               - 'services/aquarium-service/**'
             # Add other services here as they are created
-            # measurement-service:
-            #   - 'services/measurement-service/**'
-            # species-catalog-service:
-            #   - 'services/species-catalog-service/**'
-            # analysis-service:
-            #   - 'services/analysis-service/**'
 
-  # This job deploys the core infrastructure if it changes
-  deploy-core-infra:
+  # This job builds the Docker image for each changed service that has a Dockerfile
+  build-images:
     needs: detect-changes
-    # In a real scenario, you would add a path filter here for the 'infra/core' directory
-    # For now, we assume it's managed separately or deployed on every main branch push.
-    if: github.ref == 'refs/heads/main'
-    uses: ./.github/workflows/reusable-deploy-infra.yml
-    with:
-      environment: staging # Or based on your strategy
-      working-directory: ./infra/core
-    secrets: inherit
-
-  # This job is a "matrix" that will run for each service identified in the `detect-changes` job
-  deploy-services:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.services != '[]'
     strategy:
       matrix:
         service: ${{ fromJson(needs.detect-changes.outputs.services) }}
-      fail-fast: false # Allow other service deployments to continue if one fails
-    uses: ./.github/workflows/reusable-deploy-service.yml
+    # Only run this job for services that have a Dockerfile
+    if: needs.detect-changes.outputs.services != '[]' && exists(format('services/{0}/Dockerfile', matrix.service))
+    uses: ./.github/workflows/reusable-build-image.yml
+    with:
+      service-name: ${{ matrix.service }}
+      # For PRs, create a unique image tag. For main, use the commit SHA.
+      image-tag: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.sha }}
+    secrets: inherit
+
+  # This job deploys the Terraform for each changed service
+  deploy-services:
+    needs: [detect-changes, build-images]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    # Only run this job for services that have a terraform directory
+    if: needs.detect-changes.outputs.services != '[]' && exists(format('services/{0}/terraform', matrix.service))
+    uses: ./.github/workflows/reusable-deploy-terraform.yml
     with:
       service-name: ${{ matrix.service }}
       # Deploy to a temporary environment for PRs, otherwise deploy to staging
       environment: ${{ github.event_name == 'pull_request' && 'temp' || 'staging' }}
-      # For PRs, create a unique image tag. For main, use the commit SHA.
-      image-tag: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.sha }}
+      # Pass the image URI from the build job.
+      # The needs context provides access to outputs from the matrix job.
+      # We find the output that corresponds to the current service in this matrix.
+      image-uri: ${{ needs.build-images.outputs[matrix.service] && needs.build-images.outputs[matrix.service].image_uri || '' }}
     secrets: inherit
