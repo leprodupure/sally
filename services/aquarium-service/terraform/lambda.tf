@@ -16,10 +16,16 @@ resource "aws_security_group" "lambda" {
 # --- Lambda Function ---
 resource "aws_lambda_function" "main" {
   function_name = "${var.project_name}-${var.environment}-${var.module_name}"
+  handler       = "main.handler"
+  runtime       = "python3.12"
   role          = aws_iam_role.lambda_exec.arn
-  package_type  = "Image"
-  image_uri     = var.image_uri # This will be passed from the CI/CD pipeline
   timeout       = 30
+
+  # Assumes the build script has created a zip file with a standard name
+  # in the parent directory of this terraform module.
+  package_type  = "Zip"
+  filename      = "../${var.module_name}-lambda.zip"
+  source_code_hash = filebase64sha256("../${var.module_name}-lambda.zip")
 
   vpc_config {
     subnet_ids         = data.terraform_remote_state.core.outputs.private_subnet_ids

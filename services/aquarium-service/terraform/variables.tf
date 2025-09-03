@@ -18,8 +18,3 @@ variable "aws_region" {
   description = "The AWS region to deploy resources in."
   type        = string
 }
-
-variable "image_uri" {
-  description = "The ECR image URI for the Lambda function, passed from the CI/CD pipeline."
-  type        = string
-}
