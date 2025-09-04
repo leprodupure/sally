@@ -25,14 +25,20 @@ fi
 
 # 2. Clean up previous packaging artifacts
 echo "Cleaning up old packaging artifacts..."
-rm -f "$PACKAGE_ARCHIVE"
-rm -rf "$STAGING_DIR"
+if [ -f "$PACKAGE_ARCHIVE" ]; then
+  rm -f "$PACKAGE_ARCHIVE"
+fi
+if [ -d "$STAGING_DIR" ]; then
+  rm -rf "$STAGING_DIR"
+fi
 
 # 3. Create a staging directory and copy artifacts
 echo "Staging artifacts for packaging..."
 mkdir -p "$STAGING_DIR"
 cp -r "$TERRAFORM_DIR" "$STAGING_DIR"/
-cp "$LAMBDA_ARCHIVE" "$STAGING_DIR"/
+if [ -f "$LAMBDA_ARCHIVE" ]; then
+  cp "$LAMBDA_ARCHIVE" "$STAGING_DIR"/
+fi
 
 # 4. Create the final package archive
 echo "Creating final package: '$PACKAGE_ARCHIVE'..."
