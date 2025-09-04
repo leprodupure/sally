@@ -1,6 +1,5 @@
 import os
 import sys
-import boto3
 import subprocess
 from collections import defaultdict
 
@@ -23,17 +22,14 @@ def run_command(command, working_dir):
         raise subprocess.CalledProcessError(process.returncode, command)
 
 
-def s3_object_exists(s3_client, bucket, key):
+def s3_object_exists(bucket, key):
     """Checks if an object exists in an S3 bucket."""
-    try:
-        s3_client.head_object(Bucket=bucket, Key=key)
-        return True
-    except s3_client.exceptions.ClientError as e:
-        if e.response['Error']['Code'] == '404':
-            return False
-        else:
-            # Something else has gone wrong.
-            raise
+    print(f"Checking for S3 object: s3://{bucket}/{key}")
+    command = ["aws", "s3api", "head-object", "--bucket", bucket, "--key", key]
+    # We expect this command to fail if the object doesn't exist, so we capture the return code.
+    # We redirect stdout and stderr to DEVNULL to keep the output clean.
+    result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return result.returncode == 0
 
 
 def get_service_dependencies(services_dir):
@@ -46,7 +42,7 @@ def get_service_dependencies(services_dir):
 
     for service in service_list:
         # Ensure every service is in the graph, even if it has no dependencies
-        dependency_graph[service]
+        dependency_graph[service] = set()
         
         dep_file = os.path.join(services_dir, service, 'dependencies.txt')
         if os.path.exists(dep_file):
@@ -112,18 +108,16 @@ if __name__ == "__main__":
     for service in deploy_order:
         print(f"\n----- Deploying Service: {service} -----")
         package_filename = f"{service}-package.zip"
-        
-        s3_client = boto3.client('s3')
 
         # Determine the S3 key for the package, with fallback logic
         versioned_s3_key = f"{s3_key_prefix}/{service}-{s3_key_version}.zip"
         rc_s3_key = f"{s3_key_prefix}/{service}-rc.zip"
 
         s3_key_to_download = versioned_s3_key
-        if not s3_object_exists(s3_client, s3_bucket, versioned_s3_key):
+        if not s3_object_exists(s3_bucket, versioned_s3_key):
             print(f"Package '{versioned_s3_key}' not found. Falling back to 'rc' version.")
             s3_key_to_download = rc_s3_key
-            if not s3_object_exists(s3_client, s3_bucket, rc_s3_key):
+            if not s3_object_exists(s3_bucket, rc_s3_key):
                 print(f"Error: Neither PR nor RC package found for service '{service}'. Cannot deploy.")
                 sys.exit(1)
         
