@@ -1,6 +1,6 @@
 # --- IAM Role for Lambda ---
 resource "aws_iam_role" "lambda_exec" {
-  name = "${var.project_name}-${var.environment}-${var.module_name}-lambda-role"
+  name = "${var.project_name}-${var.stack}-${var.module_name}-lambda-role"
 
   assume_role_policy = jsonencode({
     Version   = "2012-10-17"
@@ -22,7 +22,7 @@ resource "aws_iam_role_policy_attachment" "lambda_vpc_access" {
 
 # A separate policy for custom permissions, like accessing Secrets Manager.
 resource "aws_iam_role_policy" "lambda_custom_policy" {
-  name = "${var.project_name}-${var.environment}-${var.module_name}-lambda-policy"
+  name = "${var.project_name}-${var.stack}-${var.module_name}-lambda-policy"
   role = aws_iam_role.lambda_exec.id
 
   policy = jsonencode({

@@ -3,8 +3,8 @@ variable "project_name" {
   type        = string
 }
 
-variable "environment" {
-  description = "The deployment environment (e.g., 'dev', 'staging', 'prod')."
+variable "stack" {
+  description = "The name of the stack, used for isolating environments (e.g., 'staging', 'pr123')."
   type        = string
 }
 

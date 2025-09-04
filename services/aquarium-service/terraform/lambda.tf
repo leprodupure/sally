@@ -1,6 +1,6 @@
 # A security group for the Lambda function to control its network access
 resource "aws_security_group" "lambda" {
-  name        = "${var.project_name}-${var.environment}-${var.module_name}-lambda-sg"
+  name        = "${var.project_name}-${var.stack}-${var.module_name}-lambda-sg"
   description = "Security group for the Aquarium Service Lambda function"
   vpc_id      = data.terraform_remote_state.core.outputs.vpc_id
 
@@ -15,7 +15,7 @@ resource "aws_security_group" "lambda" {
 
 # --- Lambda Function ---
 resource "aws_lambda_function" "main" {
-  function_name = "${var.project_name}-${var.environment}-${var.module_name}"
+  function_name = "${var.project_name}-${var.stack}-${var.module_name}"
   handler       = "main.handler"
   runtime       = "python3.12"
   role          = aws_iam_role.lambda_exec.arn

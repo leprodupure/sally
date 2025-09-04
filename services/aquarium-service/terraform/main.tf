@@ -12,3 +12,14 @@ terraform {
     }
   }
 }
+
+# --- Data Sources ---
+# Use a remote state to get outputs from the core infrastructure stack
+data "terraform_remote_state" "core" {
+  backend = "s3"
+  config = {
+    bucket = "sally-terraform-state-bucket"
+    key    = "${var.stack}/services/core-infra/terraform.tfstate"
+    region = "eu-west-3"
+  }
+}
