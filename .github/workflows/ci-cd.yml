@@ -143,6 +143,9 @@ jobs:
       environment: ${{ github.event_name == 'pull_request' && 'temp' || 'staging' }}
       stack: ${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || (github.ref == 'refs/heads/main' && 'staging' || 'temp') }}
     secrets: inherit
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC authentication with AWS
 
   deploy-batch-1:
     needs: [calculate-plan, deploy-batch-0]
@@ -156,5 +159,8 @@ jobs:
       environment: ${{ github.event_name == 'pull_request' && 'temp' || 'staging' }}
       stack: ${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || (github.ref == 'refs/heads/main' && 'staging' || 'temp') }}
     secrets: inherit
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC authentication with AWS
 
   # You can add more deploy-batch-N jobs here if you expect more levels of dependency.
