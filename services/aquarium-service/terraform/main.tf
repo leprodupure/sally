@@ -1,7 +1,7 @@
 terraform {
   backend "s3" {
     bucket = "sally-terraform-state-bucket" # Replace with the name of the S3 bucket you created
-    key    = "${var.environment}/aquarium-service/terraform.tfstate"
+    key    = "state/aquarium-service/terraform.tfstate" # The prefix will be set dynamically during init
     region = "eu-west-3"
   }
 

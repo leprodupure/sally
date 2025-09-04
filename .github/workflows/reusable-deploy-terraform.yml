@@ -42,7 +42,11 @@ jobs:
           terraform_wrapper: false
 
       - name: Terraform Init
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=sally-terraform-state-bucket" \
+            -backend-config="key=${{ inputs.stack }}/${{ inputs.service-path }}/terraform.tfstate" \
+            -backend-config="region=eu-west-3"
         working-directory: ./${{ inputs.service-path }}/terraform
 
       - name: Terraform Plan

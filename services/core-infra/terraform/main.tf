@@ -3,7 +3,7 @@ terraform {
 
   backend "s3" {
     bucket = "sally-terraform-state-bucket" # Replace with the name of the S3 bucket you created
-    key    = "${var.stack}/core-infra/terraform.tfstate"
+    key    = "state/core-infra/terraform.tfstate" # The prefix will be set dynamically during init
     region = "eu-west-3"
   }
 
