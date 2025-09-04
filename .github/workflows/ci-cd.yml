@@ -55,6 +55,7 @@ jobs:
     with:
       service-path: global-infra/infra # This is not a service, but the path to the module
       environment: global # This is a placeholder, as this module is env-agnostic
+      stack-name: global
     secrets: inherit
 
   # --- Phase 1: Build & Package ---
