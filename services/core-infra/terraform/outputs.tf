@@ -29,9 +29,9 @@ output "api_gateway_id" {
   value       = aws_api_gateway_rest_api.main.id
 }
 
-output "frontend_distribution_domain_name" {
-  description = "The domain name of the CloudFront distribution for the frontend."
-  value       = aws_cloudfront_distribution.frontend.domain_name
+output "api_gateway_root_resource_id" {
+  description = "The ID of the root resource for the core API Gateway."
+  value       = aws_api_gateway_rest_api.main.root_resource_id
 }
 
 output "cognito_user_pool_id" {
