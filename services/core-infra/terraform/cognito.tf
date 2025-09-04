@@ -1,6 +1,6 @@
 # --- Cognito User Pool ---
 resource "aws_cognito_user_pool" "main" {
-  name = "${var.project_name}-${var.environment}-${var.module_name}-user-pool"
+  name = "${var.project_name}-${var.stack}-${var.module_name}-user-pool"
 
   auto_verified_attributes = ["email"]
 
@@ -20,15 +20,15 @@ resource "aws_cognito_user_pool" "main" {
   }
 
   tags = {
-    Name        = "${var.project_name}-${var.environment}-${var.module_name}-user-pool"
+    Name        = "${var.project_name}-${var.stack}-${var.module_name}-user-pool"
     Project     = var.project_name
-    Environment = var.environment
+    Environment = var.stack
   }
 }
 
 # --- Cognito User Pool Client ---
 resource "aws_cognito_user_pool_client" "main" {
-  name = "${var.project_name}-${var.environment}-${var.module_name}-app-client"
+  name = "${var.project_name}-${var.stack}-${var.module_name}-app-client"
 
   user_pool_id = aws_cognito_user_pool.main.id
 

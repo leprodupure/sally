@@ -1,6 +1,6 @@
 # Create a private S3 bucket for the frontend assets
 resource "aws_s3_bucket" "frontend" {
-  bucket = "${var.project_name}-${var.environment}-${var.module_name}-frontend-spa"
+  bucket = "${var.project_name}-${var.stack}-${var.module_name}-frontend-spa"
 }
 
 # Block all public access to the S3 bucket
@@ -16,7 +16,7 @@ resource "aws_s3_bucket_public_access_block" "frontend" {
 # Create a CloudFront Origin Access Control (OAC)
 # This is the modern, recommended way to grant CloudFront access to a private S3 bucket
 resource "aws_cloudfront_origin_access_control" "frontend" {
-  name                              = "${var.project_name}-${var.environment}-frontend-oac"
+  name                              = "${var.project_name}-${var.stack}-frontend-oac"
   description                       = "OAC for Sally frontend"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"

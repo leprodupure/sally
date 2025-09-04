@@ -18,3 +18,7 @@ terraform {
 provider "aws" {
   region = "eu-west-3" # This can be hardcoded as it's a global resource
 }
+
+variable "stack" {
+  description = "placeholder for the CI pipeline"
+}
