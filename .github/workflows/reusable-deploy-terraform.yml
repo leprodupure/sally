@@ -43,10 +43,14 @@ jobs:
 
       - name: Terraform Init
         run: |
-          terraform init \
-            -backend-config="bucket=sally-terraform-state-bucket" \
-            -backend-config="key=${{ inputs.stack }}/${{ inputs.service-path }}/terraform.tfstate" \
-            -backend-config="region=eu-west-3"
+          if [ "${{ inputs.environment }}" != "global" ]; then
+            terraform init \
+              -backend-config="bucket=sally-terraform-state-bucket" \
+              -backend-config="key=${{ inputs.stack }}/${{ inputs.service-path }}/terraform.tfstate" \
+              -backend-config="region=eu-west-3"
+          else
+            terraform init
+          fi
         working-directory: ./${{ inputs.service-path }}/terraform
 
       - name: Terraform Plan
