@@ -6,4 +6,4 @@
 
 project_name = "sally"
 aws_region   = "eu-west-3" # Paris
-db_username  = sally
+db_username  = "sally"
