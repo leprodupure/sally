@@ -41,8 +41,10 @@ def get_service_dependencies(services_dir):
     service_list = [s for s in os.listdir(services_dir) if os.path.isdir(os.path.join(services_dir, s))]
 
     for service in service_list:
-        # Ensure every service is in the graph, even if it has no dependencies
-        dependency_graph[service] = set()
+        # Ensure every discovered service exists as a key in the graph, even if it has no dependencies.
+        # This is crucial for the topological sort to include standalone services.
+        if service not in dependency_graph:
+            dependency_graph[service] = set()
         
         dep_file = os.path.join(services_dir, service, 'dependencies.txt')
         if os.path.exists(dep_file):
