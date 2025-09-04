@@ -61,31 +61,22 @@ def topological_sort(dependency_graph):
     Performs a topological sort on the dependency graph.
     Returns a list of services in the correct deployment order.
     """
-    sorted_order = []
-    # Nodes with no incoming edges
-    in_degree = {u: 0 for u in dependency_graph}
-    for u in dependency_graph:
-        for v in dependency_graph[u]:
-            in_degree[v] += 1
+    sorted_batches = []
+    processed_nodes = set()
+    nodes_to_process = set(dependency_graph)
 
-    queue = [u for u in dependency_graph if in_degree[u] == 0]
+    while nodes_to_process:
+        # find all the nodes whose dependencies were already found. All of them can be deployed in a batch.
+        batch = [k for k in nodes_to_process if dependency_graph[k].issubset(processed_nodes)]
+        if not batch:
+            raise Exception("Cycle detected in dependencies! Cannot determine deployment order.")
+        # Add it to the list of batches.
+        sorted_batches.append(batch)
+        # Also add the batch to the list of processed nodes and remove it from the nodes to process.
+        processed_nodes.update(batch)
+        nodes_to_process.difference_update(batch)
 
-    while queue:
-        u = queue.pop(0)
-        sorted_order.append(u)
-
-        # Since u is "deployed", we can remove its outgoing edges
-        # by decrementing the in-degree of its neighbors.
-        for v in dependency_graph:
-            if u in dependency_graph[v]:
-                in_degree[v] -= 1
-                if in_degree[v] == 0:
-                    queue.append(v)
-
-    if len(sorted_order) == len(dependency_graph):
-        return sorted_order
-    else:
-        raise Exception("Cycle detected in dependencies! Cannot determine deployment order.")
+    return [item for sublist in sorted_batches for item in sublist]
 
 
 if __name__ == "__main__":
