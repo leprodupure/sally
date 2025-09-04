@@ -109,8 +109,6 @@ jobs:
   # --- Phase 2, Step 1: Calculate Deployment Plan ---
   # This job runs the orchestrator script to determine the deployment batches.
   calculate-plan:
-    needs: [build-and-package]
-    if: always() && needs.build-and-package.result == 'success'
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -132,7 +130,7 @@ jobs:
 
   # --- Phase 2, Step 2: Deploy Services in Static, Parallel Batches ---
   deploy-batch-0:
-    needs: [calculate-plan]
+    needs: [calculate-plan, build-and-package]
     if: needs.calculate-plan.outputs.matrix != '' && fromJson(needs.calculate-plan.outputs.matrix).batch[0]
     strategy:
       matrix:
