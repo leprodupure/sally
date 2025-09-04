@@ -41,6 +41,28 @@ jobs:
         with:
           terraform_wrapper: false
 
+      - name: Download and Unpack Deployment Package
+        run: |
+          # Define package names for both the specific stack (e.g., pr123) and the fallback (rc)
+          STACK_PACKAGE_NAME="${{ inputs.service-path }}-${{ inputs.stack }}.zip"
+          RC_PACKAGE_NAME="${{ inputs.service-path }}-rc.zip"
+
+          S3_BUCKET="sally-package-registry"
+          STACK_S3_KEY="packages/${STACK_PACKAGE_NAME}"
+          RC_S3_KEY="packages/${RC_PACKAGE_NAME}"
+
+          echo "Attempting to download package: ${STACK_PACKAGE_NAME}"
+          # Try to download the stack-specific package. If it fails (||), try to download the rc package.
+          # The `aws s3 cp` command will exit with a non-zero status if the file is not found.
+          (aws s3 cp "s3://${S3_BUCKET}/${STACK_S3_KEY}" "${STACK_PACKAGE_NAME}" && echo "Downloaded ${STACK_PACKAGE_NAME}") || \
+          (aws s3 cp "s3://${S3_BUCKET}/${RC_S3_KEY}" "${RC_PACKAGE_NAME}" && echo "Downloaded fallback ${RC_PACKAGE_NAME}")
+
+          # Unzip whichever package was successfully downloaded
+          PACKAGE_TO_UNZIP=$(ls *.zip | head -n 1)
+          echo "Unpacking artifact: ${PACKAGE_TO_UNZIP}"
+          unzip -o "${PACKAGE_TO_UNZIP}" -d .
+          # The package contains a 'terraform' directory, so we can now work with it.
+
       - name: Terraform Init
         run: |
           if [ "${{ inputs.environment }}" != "global" ]; then
@@ -51,27 +73,27 @@ jobs:
           else
             terraform init
           fi
-        working-directory: ./${{ inputs.service-path }}/terraform
+        working-directory: ./terraform
 
       - name: Terraform Plan
         run: |
-          cp ../../../environments/common.tfvars .
+          cp environments/common.tfvars .
           TF_VARS="-var-file=common.tfvars"
           if [ "${{ inputs.environment }}" != "global" ]; then
-            cp "../../../environments/${{ inputs.environment }}.tfvars" .
+            cp environments/${{ inputs.environment }}.tfvars .
             TF_VARS="$TF_VARS -var-file=${{ inputs.environment }}.tfvars"
           fi
           terraform plan -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
-        working-directory: ./${{ inputs.service-path }}/terraform
+        working-directory: ./terraform
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
         run: |
-          cp ../../../environments/common.tfvars .
+          cp environments/common.tfvars .
           TF_VARS="-var-file=common.tfvars"
           if [ "${{ inputs.environment }}" != "global" ]; then
-            cp "../../../environments/${{ inputs.environment }}.tfvars" .
+            cp environments/${{ inputs.environment }}.tfvars .
             TF_VARS="$TF_VARS -var-file=${{ inputs.environment }}.tfvars"
           fi
           terraform apply -auto-approve -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
-        working-directory: ./${{ inputs.service-path }}/terraform
+        working-directory: ./terraform
