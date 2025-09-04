@@ -56,18 +56,22 @@ jobs:
       - name: Terraform Plan
         run: |
           cp ../../../environments/common.tfvars .
+          TF_VARS="-var-file=common.tfvars"
           if [ "${{ inputs.environment }}" != "global" ]; then
             cp "../../../environments/${{ inputs.environment }}.tfvars" .
+            TF_VARS="$TF_VARS -var-file=${{ inputs.environment }}.tfvars"
           fi
-          terraform plan -no-color -var="stack=${{ inputs.stack }}"
+          terraform plan -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
         working-directory: ./${{ inputs.service-path }}/terraform
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
         run: |
           cp ../../../environments/common.tfvars .
+          TF_VARS="-var-file=common.tfvars"
           if [ "${{ inputs.environment }}" != "global" ]; then
             cp "../../../environments/${{ inputs.environment }}.tfvars" .
+            TF_VARS="$TF_VARS -var-file=${{ inputs.environment }}.tfvars"
           fi
-          terraform apply -auto-approve -no-color -var="stack=${{ inputs.stack }}"
+          terraform apply -auto-approve -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
         working-directory: ./${{ inputs.service-path }}/terraform
