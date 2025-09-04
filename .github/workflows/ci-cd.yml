@@ -130,22 +130,31 @@ jobs:
           PLAN=$(python scripts/deploy_orchestrator.py | tail -n 1)
           echo "matrix=$PLAN" >> $GITHUB_OUTPUT
 
-  # --- Phase 2, Step 2: Deploy Services Dynamically in Parallel Batches ---
-  # This single job definition creates a parallel job for every service that needs to be deployed.
-  # The `needs` context ensures that jobs wait for the previous batch to complete.
-  deploy-services:
-    if: needs.calculate-plan.outputs.matrix != ''
+  # --- Phase 2, Step 2: Deploy Services in Static, Parallel Batches ---
+  deploy-batch-0:
+    needs: [calculate-plan]
+    if: needs.calculate-plan.outputs.matrix != '' && fromJson(needs.calculate-plan.outputs.matrix).batch[0]
     strategy:
-      matrix: ${{ fromJson(needs.calculate-plan.outputs.matrix) }}
-    # This uses the `needs` context to create a dependency on all jobs from the *previous* batch.
-    # It works by creating a map of all jobs, then filtering for those in the previous batch.
-    # Note: This is an advanced pattern and requires careful syntax.
-    needs:
-      - calculate-plan
-      - ${{ join(fromJSON(format('{{ "{0}": true }}', join(fromJSON(needs.calculate-plan.outputs.matrix).include.*.service, '", "'))).*.key, ', ') }}
+      matrix:
+        service: ${{ fromJson(needs.calculate-plan.outputs.matrix).batch[0] }}
     uses: ./.github/workflows/reusable-deploy-terraform.yml
     with:
       service-path: services/${{ matrix.service }}
       environment: ${{ github.event_name == 'pull_request' && 'temp' || 'staging' }}
       stack: ${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || (github.ref == 'refs/heads/main' && 'staging' || 'temp') }}
     secrets: inherit
+
+  deploy-batch-1:
+    needs: [calculate-plan, deploy-batch-0]
+    if: needs.calculate-plan.outputs.matrix != '' && fromJson(needs.calculate-plan.outputs.matrix).batch[1]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.calculate-plan.outputs.matrix).batch[1] }}
+    uses: ./.github/workflows/reusable-deploy-terraform.yml
+    with:
+      service-path: services/${{ matrix.service }}
+      environment: ${{ github.event_name == 'pull_request' && 'temp' || 'staging' }}
+      stack: ${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || (github.ref == 'refs/heads/main' && 'staging' || 'temp') }}
+    secrets: inherit
+
+  # You can add more deploy-batch-N jobs here if you expect more levels of dependency.

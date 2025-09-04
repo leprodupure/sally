@@ -75,12 +75,6 @@ if __name__ == "__main__":
     print("\n--- Calculating Deployment Order (Topological Sort) ---")
     deployment_batches = topological_sort(graph)
     
-    # Create a flat list of services with their batch index for the GitHub Actions matrix "include" key
-    matrix_include = []
-    for i, batch in enumerate(deployment_batches):
-        for service in batch:
-            matrix_include.append({"service": service, "batch": i})
-
     print("\n--- Deployment Plan ---")
     # The output is a JSON string that the CI pipeline will parse
-    print(json.dumps({"include": matrix_include}))
+    print(json.dumps({"batch": deployment_batches}))
