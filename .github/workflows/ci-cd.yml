@@ -106,33 +106,46 @@ jobs:
           aws s3 cp "${PACKAGE_NAME}" "s3://${S3_BUCKET}/${S3_KEY}"
         working-directory: ./services/${{ matrix.service }}
 
-  # --- Phase 2: Deploy ---
-  # This job runs after all packages are built. It would download them and deploy.
-  deploy-all:
+  # --- Phase 2, Step 1: Calculate Deployment Plan ---
+  # This job runs the orchestrator script to determine the deployment batches.
+  calculate-plan:
     needs: [build-and-package]
     if: always() && needs.build-and-package.result == 'success'
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-3 # Should match your common.tfvars
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Run Deployment Orchestrator
-        env:
-          S3_BUCKET: "sally-package-registry"
-          S3_KEY_PREFIX: "packages"
-          S3_KEY_VERSION: "${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || 'rc' }}"
+      - name: Calculate Deployment Batches
+        id: set-matrix
         run: |
           chmod +x scripts/deploy_orchestrator.py
-          python scripts/deploy_orchestrator.py
+          PLAN=$(python scripts/deploy_orchestrator.py | tail -n 1)
+          echo "matrix=$PLAN" >> $GITHUB_OUTPUT
+
+  # --- Phase 2, Step 2: Deploy Services Dynamically in Parallel Batches ---
+  # This single job definition creates a parallel job for every service that needs to be deployed.
+  # The `needs` context ensures that jobs wait for the previous batch to complete.
+  deploy-services:
+    if: needs.calculate-plan.outputs.matrix != ''
+    strategy:
+      matrix: ${{ fromJson(needs.calculate-plan.outputs.matrix) }}
+    # This uses the `needs` context to create a dependency on all jobs from the *previous* batch.
+    # It works by creating a map of all jobs, then filtering for those in the previous batch.
+    # Note: This is an advanced pattern and requires careful syntax.
+    needs:
+      - calculate-plan
+      - ${{ join(fromJSON(format('{{ "{0}": true }}', join(fromJSON(needs.calculate-plan.outputs.matrix).include.*.service, '", "'))).*.key, ', ') }}
+    uses: ./.github/workflows/reusable-deploy-terraform.yml
+    with:
+      service-path: services/${{ matrix.service }}
+      environment: ${{ github.event_name == 'pull_request' && 'temp' || 'staging' }}
+      stack: ${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || (github.ref == 'refs/heads/main' && 'staging' || 'temp') }}
+    secrets: inherit

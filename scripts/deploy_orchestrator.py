@@ -1,26 +1,7 @@
 import os
 import sys
-import subprocess
+import json
 from collections import defaultdict
-
-
-def run_command(command, working_dir):
-    """Runs a command and streams its output."""
-    print(f"Executing: '{' '.join(command)}' in '{working_dir}'", flush=True)
-    process = subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        cwd=working_dir,
-        bufsize=1
-    )
-    for line in iter(process.stdout.readline, ''):
-        print(line, end='', flush=True)
-    process.wait()
-    if process.returncode != 0:
-        raise subprocess.CalledProcessError(process.returncode, command)
-
 
 def s3_object_exists(bucket, key):
     """Checks if an object exists in an S3 bucket."""
@@ -59,7 +40,8 @@ def get_service_dependencies(services_dir):
 def topological_sort(dependency_graph):
     """
     Performs a topological sort on the dependency graph.
-    Returns a list of services in the correct deployment order.
+    Returns a list of batches, where each batch is a list of services
+    that can be deployed in parallel.
     """
     sorted_batches = []
     processed_nodes = set()
@@ -76,50 +58,29 @@ def topological_sort(dependency_graph):
         processed_nodes.update(batch)
         nodes_to_process.difference_update(batch)
 
-    return [item for sublist in sorted_batches for item in sublist]
+    return sorted_batches
 
 
 if __name__ == "__main__":
+    """
+    This script calculates the deployment order of services based on dependency files
+    and outputs a JSON object representing deployment batches for the CI/CD pipeline.
+    """
     services_dir = "services"
-    s3_bucket = os.environ.get("S3_BUCKET")
-    s3_key_prefix = os.environ.get("S3_KEY_PREFIX", "packages")
-    s3_key_version = os.environ.get("S3_KEY_VERSION")
-
-    if not all([s3_bucket, s3_key_version]):
-        print("Error: S3_BUCKET and S3_KEY_VERSION environment variables must be set.")
-        sys.exit(1)
 
     print("--- Building Service Dependency Graph ---")
     graph = get_service_dependencies(services_dir)
     print(f"Found dependencies: {dict(graph)}")
 
     print("\n--- Calculating Deployment Order (Topological Sort) ---")
-    deploy_order = topological_sort(graph)
-    print(f"Deployment order: {deploy_order}")
+    deployment_batches = topological_sort(graph)
+    
+    # Create a flat list of services with their batch index for the GitHub Actions matrix "include" key
+    matrix_include = []
+    for i, batch in enumerate(deployment_batches):
+        for service in batch:
+            matrix_include.append({"service": service, "batch": i})
 
-    print("\n--- Starting Sequential Deployment ---")
-    for service in deploy_order:
-        print(f"\n----- Deploying Service: {service} -----")
-        package_filename = f"{service}-package.zip"
-
-        # Determine the S3 key for the package, with fallback logic
-        versioned_s3_key = f"{s3_key_prefix}/{service}-{s3_key_version}.zip"
-        rc_s3_key = f"{s3_key_prefix}/{service}-rc.zip"
-
-        s3_key_to_download = versioned_s3_key
-        if not s3_object_exists(s3_bucket, versioned_s3_key):
-            print(f"Package '{versioned_s3_key}' not found. Falling back to 'rc' version.")
-            s3_key_to_download = rc_s3_key
-            if not s3_object_exists(s3_bucket, rc_s3_key):
-                print(f"Error: Neither PR nor RC package found for service '{service}'. Cannot deploy.")
-                sys.exit(1)
-        
-        # 1. Download the package
-        run_command(["aws", "s3", "cp", f"s3://{s3_bucket}/{s3_key_to_download}", package_filename], working_dir=".")
-        # 2. Unzip the package
-        run_command(["unzip", "-o", package_filename], working_dir=".")
-        # 3. Deploy using Terraform
-        run_command(["terraform", "apply", "-auto-approve"], working_dir="terraform")
-        # 4. Clean up
-        run_command(["rm", "-rf", "terraform", f"{service}-lambda.zip"], working_dir=".")
-        run_command(["rm", package_filename], working_dir=".")
+    print("\n--- Deployment Plan ---")
+    # The output is a JSON string that the CI pipeline will parse
+    print(json.dumps({"include": matrix_include}))
