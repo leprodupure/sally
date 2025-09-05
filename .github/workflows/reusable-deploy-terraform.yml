@@ -72,7 +72,7 @@ jobs:
 
       - name: Get Core Infra Outputs
         id: core-outputs
-        if: inputs.environment != 'global' && inputs.service-path != 'core-infra'
+        if: inputs.environment != 'global' && hashFiles('alembic.ini') != '' # only run when a sql migration script is present.
         run: |
           # Temporarily initialize a lightweight terraform config to read remote state
           cat > core_outputs.tf <<EOF
