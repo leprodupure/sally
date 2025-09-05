@@ -2,7 +2,10 @@
 resource "random_password" "db_password" {
   length           = 16
   special          = true
-  override_special = "_%@"
+  upper            = true
+  lower            = true
+  numeric          = true
+  override_special = "_%"
 }
 
 resource "aws_secretsmanager_secret" "db_credentials" {
