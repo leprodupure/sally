@@ -1,5 +1,7 @@
+import os
+import json
+import boto3
 from logging.config import fileConfig
-
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
@@ -17,13 +19,38 @@ if config.config_file_name is not None:
 # add your model's MetaData object here
 # for 'autogenerate' support
 # from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-target_metadata = None
+import sys
+sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), '..', 'src')))
+from src.models import Base
+target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
+
+def get_database_url():
+    """
+    Constructs the database URL from a JSON secret stored in an environment variable.
+    """
+    secret_arn = os.environ.get("DB_SECRET_ARN")
+    if not secret_arn:
+        raise ValueError("DB_SECRET_ARN environment variable not set.")
+
+    # Use boto3 to fetch the secret value from AWS Secrets Manager
+    session = boto3.session.Session()
+    client = session.client(service_name='secretsmanager')
+    get_secret_value_response = client.get_secret_value(SecretId=secret_arn)
+    secret_string = get_secret_value_response['SecretString']
+
+    secret = json.loads(secret_string)
+    db_user = secret['username']
+    db_pass = secret['password']
+    db_host = secret['endpoint']
+    db_name = secret['db_name']
+    # The dialect should match the driver installed by the pipeline (psycopg2)
+    return f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}/{db_name}"
 
 
 def run_migrations_offline() -> None:
@@ -38,7 +65,8 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    url = get_database_url()
+    config.set_main_option("sqlalchemy.url", url)
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -57,6 +85,9 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    # Set the sqlalchemy.url in the config object from our dynamic function
+    config.set_main_option("sqlalchemy.url", get_database_url())
+
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

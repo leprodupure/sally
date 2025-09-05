@@ -90,7 +90,7 @@ jobs:
           echo "--- Found alembic.ini, running database migrations... ---"
           # The env.py script will use the same environment variables as the app to connect
           # We need to install alembic and the db driver first
-          pip install alembic psycopg2-binary
+          pip install alembic psycopg2-binary boto3
           alembic upgrade head
         env:
           # These are needed by the alembic env.py to connect to the database
