@@ -11,8 +11,8 @@ resource "aws_api_gateway_resource" "aquariums" {
 
 # ... you would continue to define methods (GET, POST) and integrations here ...
 
-# Note: The root resource ID of the API Gateway needs to be exported from the core module.
-# Add the following to infra/core/outputs.tf:
+# Note: The root resource ID of the API Gateway needs to be exported from the core-infra module.
+# Add the following to services/core-infra/outputs.tf:
 #
 # output "api_gateway_root_resource_id" {
 #   description = "The ID of the root resource for the core API Gateway."

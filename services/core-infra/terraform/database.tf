@@ -6,7 +6,7 @@ resource "random_password" "db_password" {
 }
 
 resource "aws_secretsmanager_secret" "db_credentials" {
-  name = "${var.project_name}/${var.environment}/${var.module_name}/db_credentials"
+  name = "${var.project_name}/${var.stack}/${var.module_name}/db_credentials"
 }
 
 resource "aws_secretsmanager_secret_version" "db_credentials" {
@@ -14,21 +14,23 @@ resource "aws_secretsmanager_secret_version" "db_credentials" {
   secret_string = jsonencode({
     username = var.db_username
     password = random_password.db_password.result
+    url      = aws_db_instance.main.address
+    db_name  = var.project_name
   })
 }
 
 # --- Database Resources ---
 resource "aws_db_subnet_group" "main" {
-  name       = "${var.project_name}-${var.environment}-${var.module_name}-sng"
+  name       = "${var.project_name}-${var.stack}-${var.module_name}-sng"
   subnet_ids = aws_subnet.private[*].id
 
   tags = {
-    Name = "${var.project_name}-${var.environment}-${var.module_name}-sng"
+    Name = "${var.project_name}-${var.stack}-${var.module_name}-sng"
   }
 }
 
 resource "aws_security_group" "db" {
-  name        = "${var.project_name}-${var.environment}-${var.module_name}-db-sg"
+  name        = "${var.project_name}-${var.stack}-${var.module_name}-db-sg"
   description = "Allow PostgreSQL traffic from within the VPC"
   vpc_id      = aws_vpc.main.id
 
@@ -48,7 +50,7 @@ resource "aws_security_group" "db" {
 }
 
 resource "aws_db_instance" "main" {
-  identifier             = "${var.project_name}-${var.environment}-${var.module_name}-db"
+  identifier             = "${var.project_name}-${var.stack}-${var.module_name}-db"
   engine                 = "postgres"
   engine_version         = "15"
   instance_class         = "db.t3.micro" # Free Tier eligible

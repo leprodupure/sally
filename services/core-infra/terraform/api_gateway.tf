@@ -1,5 +1,5 @@
 resource "aws_api_gateway_rest_api" "main" {
-  name        = "${var.project_name}-${var.environment}-${var.module_name}-api"
+  name        = "${var.project_name}-${var.stack}-${var.module_name}-api"
   description = "Main API Gateway for the ${var.project_name} project"
 
   endpoint_configuration {

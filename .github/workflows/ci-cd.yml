@@ -1,0 +1,167 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'services/**'
+      - 'global-infra/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # This job determines which services have changed
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      global-infra: ${{ steps.global-infra-filter.outputs.changes }}
+      services: ${{ steps.services-filter.outputs.changes }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect changed global infrastructure
+        uses: dorny/paths-filter@v3
+        id: global-infra-filter
+        with:
+          filters: |
+            global-infra:
+              - 'global-infra/infra/**'
+
+      - name: Detect changed services
+        uses: dorny/paths-filter@v3
+        id: services-filter
+        with:
+          filters: |
+            core-infra:
+              - 'services/core-infra/**'
+            aquarium-service:
+              - 'services/aquarium-service/**'
+            # Add other services here as they are created
+
+  # --- Initial Job: Deploy Global Infrastructure ---
+  # This job deploys shared resources like the S3 package registry.
+  deploy-global-infra:
+    needs: [ detect-changes ]
+    if: needs.detect-changes.outputs.global-infra != '[]'
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC authentication with AWS
+    uses: ./.github/workflows/reusable-deploy-terraform.yml
+    with:
+      workdir: global-infra/infra
+      service-path: global-infra/infra # This is not a service, but the path to the module
+      environment: global # This is a placeholder, as this module is env-agnostic
+      stack: global
+    secrets: inherit
+
+  # --- Phase 1: Build & Package ---
+  # This job runs for each changed service, builds it, packages it, and uploads the package to S3.
+  build-and-package:
+    needs: [ detect-changes, deploy-global-infra ]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    if: needs.detect-changes.outputs.services != '[]'
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC authentication with AWS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-3 # Should match your common.tfvars
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run build.sh
+        run: |
+          chmod +x ../../scripts/build.sh
+          ../../scripts/build.sh
+        working-directory: ./services/${{ matrix.service }}
+
+      - name: Run package.sh
+        run: |
+          chmod +x ../../scripts/package.sh
+          ../../scripts/package.sh
+        working-directory: ./services/${{ matrix.service }}
+
+      - name: Upload package to S3 Registry
+        run: |
+          PACKAGE_NAME="${{ matrix.service }}-package.zip"
+          S3_BUCKET="sally-package-registry"
+          S3_KEY="packages/${{ matrix.service }}-${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || 'rc' }}.zip"
+          aws s3 cp "${PACKAGE_NAME}" "s3://${S3_BUCKET}/${S3_KEY}"
+        working-directory: ./services/${{ matrix.service }}
+
+  # --- Phase 2, Step 1: Calculate Deployment Plan ---
+  # This job runs the orchestrator script to determine the deployment batches.
+  calculate-plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Calculate Deployment Batches
+        id: set-matrix
+        run: |
+          chmod +x scripts/deploy_orchestrator.py
+          PLAN=$(python scripts/deploy_orchestrator.py | tail -n 1)
+          echo "matrix=$PLAN" >> $GITHUB_OUTPUT
+
+  # --- Phase 2, Step 2: Deploy Services in Static, Parallel Batches ---
+  deploy-batch-0:
+    needs: [ calculate-plan, build-and-package ]
+    if: needs.calculate-plan.outputs.matrix != '' && fromJson(needs.calculate-plan.outputs.matrix).batch[0]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.calculate-plan.outputs.matrix).batch[0] }}
+    uses: ./.github/workflows/reusable-deploy-terraform.yml
+    with:
+      workdir: .
+      service-path: services/${{ matrix.service }}
+      environment: ${{ github.event_name == 'pull_request' && 'temp' || 'staging' }}
+      stack: ${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || (github.ref == 'refs/heads/main' && 'staging' || 'temp') }}
+    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC authentication with AWS
+
+  deploy-batch-1:
+    needs: [ calculate-plan, deploy-batch-0 ]
+    if: needs.calculate-plan.outputs.matrix != '' && fromJson(needs.calculate-plan.outputs.matrix).batch[1]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.calculate-plan.outputs.matrix).batch[1] }}
+    uses: ./.github/workflows/reusable-deploy-terraform.yml
+    with:
+      workdir: .
+      service-path: services/${{ matrix.service }}
+      environment: ${{ github.event_name == 'pull_request' && 'temp' || 'staging' }}
+      stack: ${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || (github.ref == 'refs/heads/main' && 'staging' || 'temp') }}
+    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC authentication with AWS
+
+  # You can add more deploy-batch-N jobs here if you expect more levels of dependency.

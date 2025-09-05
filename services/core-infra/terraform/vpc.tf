@@ -10,9 +10,9 @@ resource "aws_vpc" "main" {
   enable_dns_hostnames = true
 
   tags = {
-    Name        = "${var.project_name}-${var.environment}-${var.module_name}-vpc"
+    Name        = "${var.project_name}-${var.stack}-${var.module_name}-vpc"
     Project     = var.project_name
-    Environment = var.environment
+    Environment = var.stack
   }
 }
 
@@ -25,7 +25,7 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "${var.project_name}-${var.environment}-${var.module_name}-public-subnet-${count.index + 1}"
+    Name = "${var.project_name}-${var.stack}-${var.module_name}-public-subnet-${count.index + 1}"
   }
 }
 
@@ -36,7 +36,7 @@ resource "aws_subnet" "private" {
   availability_zone = data.aws_availability_zones.available.names[count.index]
 
   tags = {
-    Name = "${var.project_name}-${var.environment}-${var.module_name}-private-subnet-${count.index + 1}"
+    Name = "${var.project_name}-${var.stack}-${var.module_name}-private-subnet-${count.index + 1}"
   }
 }
 
@@ -44,7 +44,7 @@ resource "aws_subnet" "private" {
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
   tags = {
-    Name = "${var.project_name}-${var.environment}-${var.module_name}-igw"
+    Name = "${var.project_name}-${var.stack}-${var.module_name}-igw"
   }
 }
 
@@ -57,7 +57,7 @@ resource "aws_route_table" "public" {
   }
 
   tags = {
-    Name = "${var.project_name}-${var.environment}-${var.module_name}-public-rt"
+    Name = "${var.project_name}-${var.stack}-${var.module_name}-public-rt"
   }
 }
 

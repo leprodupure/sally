@@ -3,8 +3,8 @@ variable "project_name" {
   type        = string
 }
 
-variable "environment" {
-  description = "The deployment environment (e.g., 'dev', 'staging', 'prod')."
+variable "stack" {
+  description = "The name of the stack, used for isolating environments (e.g., 'staging', 'pr123')."
   type        = string
 }
 
@@ -16,10 +16,5 @@ variable "module_name" {
 
 variable "aws_region" {
   description = "The AWS region to deploy resources in."
-  type        = string
-}
-
-variable "image_uri" {
-  description = "The ECR image URI for the Lambda function, passed from the CI/CD pipeline."
   type        = string
 }

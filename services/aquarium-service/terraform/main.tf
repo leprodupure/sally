@@ -1,4 +1,10 @@
 terraform {
+  backend "s3" {
+    bucket = "sally-terraform-state-bucket" # Replace with the name of the S3 bucket you created
+    key    = "state/aquarium-service/terraform.tfstate" # The prefix will be set dynamically during init
+    region = "eu-west-3"
+  }
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -10,10 +16,10 @@ terraform {
 # --- Data Sources ---
 # Use a remote state to get outputs from the core infrastructure stack
 data "terraform_remote_state" "core" {
-  backend = "s3" # This should be configured to your actual remote state backend
+  backend = "s3"
   config = {
-    bucket = "sally-terraform-state-bucket" # Example bucket
-    key    = "${var.environment}/core/terraform.tfstate"
-    region = var.aws_region
+    bucket = "sally-terraform-state-bucket"
+    key    = "${var.stack}/services/core-infra/terraform.tfstate"
+    region = "eu-west-3"
   }
 }
