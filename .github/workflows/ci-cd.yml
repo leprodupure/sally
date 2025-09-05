@@ -131,7 +131,7 @@ jobs:
   # --- Phase 2, Step 2: Deploy Services in Static, Parallel Batches ---
   deploy-batch-0:
     needs: [ calculate-plan, build-and-package ]
-    if: needs.calculate-plan.outputs.matrix != '' && fromJson(needs.calculate-plan.outputs.matrix).batch[0]
+    if: ${{ !(failure() || cancelled()) && needs.calculate-plan.outputs.matrix != '' && fromJson(needs.calculate-plan.outputs.matrix).batch[0] }}
     strategy:
       matrix:
         service: ${{ fromJson(needs.calculate-plan.outputs.matrix).batch[0] }}
@@ -148,7 +148,7 @@ jobs:
 
   deploy-batch-1:
     needs: [ calculate-plan, deploy-batch-0 ]
-    if: needs.calculate-plan.outputs.matrix != '' && fromJson(needs.calculate-plan.outputs.matrix).batch[1]
+    if: ${{ !(failure() || cancelled()) && needs.calculate-plan.outputs.matrix != '' && fromJson(needs.calculate-plan.outputs.matrix).batch[1] }}
     strategy:
       matrix:
         service: ${{ fromJson(needs.calculate-plan.outputs.matrix).batch[1] }}
