@@ -85,7 +85,7 @@ jobs:
         working-directory: .
 
       - name: Run Database Migrations (if applicable)
-        if: inputs.environment != 'global' && steps.download.outputs.unpacked == 'true' && hashFiles('alembic.ini') != ''
+        if: inputs.environment != 'global' && hashFiles('alembic.ini') != ''
         run: |
           echo "--- Found alembic.ini, running database migrations... ---"
           # The env.py script will use the same environment variables as the app to connect
