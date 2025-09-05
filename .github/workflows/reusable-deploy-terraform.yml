@@ -70,6 +70,32 @@ jobs:
           unzip -o "${PACKAGE_TO_UNZIP}" -d .
           # The package contains a 'terraform' directory, so we can now work with it.
 
+      - name: Get Core Infra Outputs
+        id: core-outputs
+        if: inputs.environment != 'global' && inputs.service-path != 'core-infra'
+        run: |
+          # Temporarily initialize a lightweight terraform config to read remote state
+          cat > core_outputs.tf <<EOF
+          terraform {
+            backend "s3" {}
+          }
+          EOF
+          terraform init -reconfigure -backend-config="bucket=sally-terraform-state-bucket" -backend-config="key=${{ inputs.stack }}/services/core-infra/terraform.tfstate" -backend-config="region=eu-west-3"
+          echo "db_secret_arn=$(terraform output -raw db_credentials_secret_arn)" >> $GITHUB_OUTPUT
+        working-directory: .
+
+      - name: Run Database Migrations (if applicable)
+        if: inputs.environment != 'global' && steps.download.outputs.unpacked == 'true' && hashFiles('alembic.ini') != ''
+        run: |
+          echo "--- Found alembic.ini, running database migrations... ---"
+          # The env.py script will use the same environment variables as the app to connect
+          # We need to install alembic and the db driver first
+          pip install alembic psycopg2-binary
+          alembic upgrade head
+        env:
+          # These are needed by the alembic env.py to connect to the database
+          DB_SECRET_ARN: ${{ steps.core-outputs.outputs.db_secret_arn }}
+
       - name: Terraform Init
         run: |
           terraform init \
