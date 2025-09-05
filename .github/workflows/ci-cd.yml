@@ -46,13 +46,14 @@ jobs:
   # --- Initial Job: Deploy Global Infrastructure ---
   # This job deploys shared resources like the S3 package registry.
   deploy-global-infra:
-    needs: [detect-changes]
+    needs: [ detect-changes ]
     if: needs.detect-changes.outputs.global-infra != '[]'
     permissions:
       contents: read
       id-token: write # Required for OIDC authentication with AWS
     uses: ./.github/workflows/reusable-deploy-terraform.yml
     with:
+      workdir: global-infra/infra
       service-path: global-infra/infra # This is not a service, but the path to the module
       environment: global # This is a placeholder, as this module is env-agnostic
       stack: global
@@ -61,7 +62,7 @@ jobs:
   # --- Phase 1: Build & Package ---
   # This job runs for each changed service, builds it, packages it, and uploads the package to S3.
   build-and-package:
-    needs: [detect-changes, deploy-global-infra]
+    needs: [ detect-changes, deploy-global-infra ]
     strategy:
       matrix:
         service: ${{ fromJson(needs.detect-changes.outputs.services) }}
@@ -130,14 +131,15 @@ jobs:
 
   # --- Phase 2, Step 2: Deploy Services in Static, Parallel Batches ---
   deploy-batch-0:
-    needs: [calculate-plan, build-and-package]
+    needs: [ calculate-plan, build-and-package ]
     if: needs.calculate-plan.outputs.matrix != '' && fromJson(needs.calculate-plan.outputs.matrix).batch[0]
     strategy:
       matrix:
         service: ${{ fromJson(needs.calculate-plan.outputs.matrix).batch[0] }}
     uses: ./.github/workflows/reusable-deploy-terraform.yml
     with:
-      service-path: .
+      workdir: .
+      service-path: services/${{ matrix.service }}
       environment: ${{ github.event_name == 'pull_request' && 'temp' || 'staging' }}
       stack: ${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || (github.ref == 'refs/heads/main' && 'staging' || 'temp') }}
     secrets: inherit
@@ -146,14 +148,15 @@ jobs:
       id-token: write # Required for OIDC authentication with AWS
 
   deploy-batch-1:
-    needs: [calculate-plan, deploy-batch-0]
+    needs: [ calculate-plan, deploy-batch-0 ]
     if: needs.calculate-plan.outputs.matrix != '' && fromJson(needs.calculate-plan.outputs.matrix).batch[1]
     strategy:
       matrix:
         service: ${{ fromJson(needs.calculate-plan.outputs.matrix).batch[1] }}
     uses: ./.github/workflows/reusable-deploy-terraform.yml
     with:
-      service-path: .
+      workdir: .
+      service-path: services/${{ matrix.service }}
       environment: ${{ github.event_name == 'pull_request' && 'temp' || 'staging' }}
       stack: ${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || (github.ref == 'refs/heads/main' && 'staging' || 'temp') }}
     secrets: inherit

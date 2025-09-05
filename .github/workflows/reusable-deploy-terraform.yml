@@ -3,6 +3,9 @@ name: Reusable - Deploy Terraform
 on:
   workflow_call:
     inputs:
+      workdir:
+        required: true
+        type: string
       service-path:
         required: true
         type: string
@@ -73,7 +76,7 @@ jobs:
             -backend-config="bucket=sally-terraform-state-bucket" \
             -backend-config="key=${{ inputs.stack }}/${{ inputs.service-path }}/terraform.tfstate" \
             -backend-config="region=eu-west-3"
-        working-directory: ./${{ inputs.service-path }}/terraform
+        working-directory: ./${{ inputs.workdir }}/terraform
 
       - name: Terraform Plan
         run: |
@@ -84,7 +87,7 @@ jobs:
             TF_VARS="-var-file=common.tfvars -var-file=${{ inputs.environment }}.tfvars"
           fi
           terraform plan -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
-        working-directory: ./${{ inputs.service-path }}/terraform
+        working-directory: ./${{ inputs.workdir }}/terraform
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
@@ -96,4 +99,4 @@ jobs:
             TF_VARS="-var-file=common.tfvars -var-file=${{ inputs.environment }}.tfvars"
           fi
           terraform apply -auto-approve -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
-        working-directory: ./${{ inputs.service-path }}/terraform
+        working-directory: ./${{ inputs.workdir }}/terraform
