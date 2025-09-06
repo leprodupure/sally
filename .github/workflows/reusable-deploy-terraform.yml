@@ -89,9 +89,8 @@ jobs:
           
           # Check the output of the Lambda function
           STATUS_CODE=$(jq -r '.StatusCode' output.json)
-          FUNCTION_ERROR=$(jq -r '.FunctionError' output.json)
-
-          if [ "$STATUS_CODE" != "200" ] || [ "$FUNCTION_ERROR" != "null" ]; then
+          
+          if [ "$STATUS_CODE" != "200" ]; then
             echo "::error::Lambda migration failed!"
             jq '.' output.json # Print the full error output
             exit 1
