@@ -11,7 +11,7 @@ def handler(event, context):
     This Lambda handler downloads a service package from S3,
     unzips it, and runs alembic migrations found within.
     """
-    s3_bucket = event['s3_bucket']
+    s3_bucket = os.environ['S3_BUCKET']
     s3_key = event['s3_key']
     extract_dir = f"/tmp/migration_files/{s3_key}"
 

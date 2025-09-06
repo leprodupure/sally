@@ -36,7 +36,10 @@ resource "aws_iam_role_policy" "migration_runner_policy" {
       {
         Action   = ["s3:GetObject"]
         Effect   = "Allow"
-        Resource = "arn:aws:s3:::sally-package-registry/*" # Grant access to the package registry bucket
+        Resource = [
+          "arn:aws:s3:::${var.s3_package_registry_bucket_name}/*", # Grant access to the objects
+          "arn:aws:s3:::${var.s3_package_registry_bucket_name}"  # Grant access to the bucket itself (for operations like ListBucket)
+        ]
       }
     ]
   })
@@ -63,6 +66,7 @@ resource "aws_lambda_function" "migration_runner" {
     variables = {
       # Pass the secret ARN to the migration runner so it can connect to the DB
       DB_SECRET_ARN = aws_secretsmanager_secret.db_credentials.arn
+      S3_BUCKET     = var.s3_package_registry_bucket_name
     }
   }
 }

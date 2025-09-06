@@ -74,12 +74,10 @@ jobs:
         if: inputs.environment != 'global' && hashFiles('alembic.ini') != ''
         run: |
           echo "--- Found alembic.ini, invoking migration runner Lambda... ---"
-          SERVICE_NAME=$(basename "${{ inputs.service-path }}")
-          S3_BUCKET="sally-package-registry"
-          S3_KEY="packages/${SERVICE_NAME}-${{ inputs.stack }}.zip"
+          S3_KEY="packages/$(basename "${{ inputs.service-path }}")-${{ inputs.stack }}.zip"
           FUNCTION_NAME="sally-${{ inputs.stack }}-migration-runner"
 
-          PAYLOAD=$(jq -n --arg bucket "$S3_BUCKET" --arg key "$S3_KEY" '{s3_bucket: $bucket, s3_key: $key}')
+          PAYLOAD=$(jq -n --arg key "$S3_KEY" '{s3_key: $key}')
 
           aws lambda invoke \
             --function-name "$FUNCTION_NAME" \
