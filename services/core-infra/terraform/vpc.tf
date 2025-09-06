@@ -67,6 +67,57 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
+# --- Private Route Table ---
+# It's a best practice for private subnets to have their own route table.
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = "${var.project_name}-${var.stack}-${var.module_name}-private-rt"
+  }
+}
+
+resource "aws_route_table_association" "private" {
+  count          = length(aws_subnet.private)
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private.id
+}
+
+# --- VPC Endpoints ---
+resource "aws_security_group" "vpc_endpoints" {
+  name        = "${var.project_name}-${var.stack}-vpc-endpoints-sg"
+  description = "Security group for VPC endpoints"
+  vpc_id      = aws_vpc.main.id
+}
+
+resource "aws_security_group_rule" "allow_vpc_to_vpc_endpoints" {
+  type              = "ingress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = [aws_vpc.main.cidr_block]
+  security_group_id = aws_security_group.vpc_endpoints.id
+  description       = "Allow resources in the VPC to use VPC endpoints"
+}
+
+# This allows resources in the private subnets (like our Lambdas) to access S3
+# without needing a NAT Gateway or public internet access.
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id          = aws_vpc.main.id
+  service_name    = "com.amazonaws.${var.aws_region}.s3"
+  route_table_ids = [aws_route_table.private.id] # Gateway endpoint associates with route tables
+}
+
+# This allows resources in the private subnets to access Secrets Manager
+resource "aws_vpc_endpoint" "secretsmanager" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.aws_region}.secretsmanager"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+}
+
 # Note: A production setup would include NAT Gateways for private subnets to access the internet.
 # This has been omitted to simplify the setup and avoid costs not covered by the Free Tier.
 # Lambda functions in private subnets will need VPC Endpoints to access AWS services.

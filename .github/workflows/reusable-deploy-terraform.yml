@@ -70,6 +70,33 @@ jobs:
           unzip -o "${PACKAGE_TO_UNZIP}" -d .
           # The package contains a 'terraform' directory, so we can now work with it.
 
+      - name: Run Database Migrations via Lambda (if applicable)
+        if: inputs.environment != 'global' && hashFiles('alembic.ini') != ''
+        run: |
+          echo "--- Found alembic.ini, invoking migration runner Lambda... ---"
+          S3_KEY="packages/$(basename "${{ inputs.service-path }}")-${{ inputs.stack }}.zip"
+          FUNCTION_NAME="sally-${{ inputs.stack }}-migration-runner"
+
+          PAYLOAD=$(jq -n --arg key "$S3_KEY" '{s3_key: $key}')
+
+          aws lambda invoke \
+            --invocation-type RequestResponse \
+            --function-name "$FUNCTION_NAME" \
+            --payload "$PAYLOAD" \
+            --cli-binary-format raw-in-base64-out \
+            --log-type Tail \
+            output.json
+          
+          # Check the output of the Lambda function
+          STATUS=$(jq -r '.status' output.json)
+          
+          if [ "$STATUS" != "SUCCESS" ]; then
+            echo "::error::Lambda migration failed!"
+            jq '.' output.json # Print the full error output
+            exit 1
+          fi
+          echo "Lambda migration successful."
+
       - name: Terraform Init
         run: |
           terraform init \

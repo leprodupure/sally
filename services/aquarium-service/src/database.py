@@ -17,8 +17,8 @@ secret = json.loads(get_secret_value_response['SecretString'])
 
 DB_USERNAME = secret['username']
 DB_PASSWORD = secret['password']
-DB_ENDPOINT = os.environ.get("DB_ENDPOINT")
-DB_NAME = "postgres" # Default database name
+DB_ENDPOINT = secret['endpoint']
+DB_NAME = secret['db_name']
 
 SQLALCHEMY_DATABASE_URL = f"postgresql://{DB_USERNAME}:{DB_PASSWORD}@{DB_ENDPOINT}/{DB_NAME}"
 
