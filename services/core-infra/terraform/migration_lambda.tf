@@ -45,6 +45,20 @@ resource "aws_iam_role_policy" "migration_runner_policy" {
   })
 }
 
+resource "aws_security_group" "migration_runner_lambda" {
+  name        = "${var.project_name}-${var.stack}-migration-runner-lambda-sg"
+  description = "Security group for the Migration Runner Lambda function"
+  vpc_id      = aws_vpc.main.id
+
+  # Allow all outbound traffic
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
 resource "aws_lambda_function" "migration_runner" {
   function_name = "${var.project_name}-${var.stack}-migration-runner"
   handler       = "migration_runner.handler"
@@ -59,7 +73,7 @@ resource "aws_lambda_function" "migration_runner" {
 
   vpc_config {
     subnet_ids         = aws_subnet.private[*].id
-    security_group_ids = [aws_security_group.db.id] # Re-use the DB security group for simplicity
+    security_group_ids = [aws_security_group.migration_runner_lambda.id]
   }
 
   environment {
