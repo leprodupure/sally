@@ -67,6 +67,15 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
+# --- VPC Endpoint for S3 ---
+# This allows resources in the private subnets (like our Lambdas) to access S3
+# without needing a NAT Gateway or public internet access.
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id       = aws_vpc.main.id
+  service_name = "com.amazonaws.${var.aws_region}.s3"
+  route_table_ids = [for subnet in aws_subnet.private : aws_route_table.public.id] # This is a simplification; a better setup would have dedicated route tables for private subnets
+}
+
 # Note: A production setup would include NAT Gateways for private subnets to access the internet.
 # This has been omitted to simplify the setup and avoid costs not covered by the Free Tier.
 # Lambda functions in private subnets will need VPC Endpoints to access AWS services.
