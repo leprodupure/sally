@@ -13,17 +13,21 @@ def handler(event, context):
     """
     s3_bucket = event['s3_bucket']
     s3_key = event['s3_key']
-    extract_dir = "/tmp/migration_files"
+    extract_dir = f"/tmp/migration_files/{s3_key}"
 
     print(f"Downloading s3://{s3_bucket}/{s3_key}...")
     s3_object = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
+    print("Reading the zip file...")
     zip_content = s3_object['Body'].read()
 
-    print(f"Unzipping package to {extract_dir}...")
     if os.path.exists(extract_dir):
+        print(f"Removing the extraction directory {extract_dir} of a previous execution...")
         shutil.rmtree(extract_dir)
+
+    print(f"Creating the folder {extract_dir}...")
     os.makedirs(extract_dir)
 
+    print(f"Unzipping package to {extract_dir}...")
     with zipfile.ZipFile(io.BytesIO(zip_content)) as z:
         z.extractall(extract_dir)
 
@@ -32,6 +36,9 @@ def handler(event, context):
         # The env.py script will use the same environment variables as the app to connect
         subprocess.check_call(["alembic", "upgrade", "head"], cwd=extract_dir)
         print("Migrations completed successfully.")
+
+        print(f"Cleaning the extraction directory {extract_dir} ...")
+        shutil.rmtree(extract_dir)
     else:
         print("No alembic.ini found, skipping migrations.")
 
