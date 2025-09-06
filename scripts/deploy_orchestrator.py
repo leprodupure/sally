@@ -1,16 +1,6 @@
 import os
-import sys
 import json
 from collections import defaultdict
-
-def s3_object_exists(bucket, key):
-    """Checks if an object exists in an S3 bucket."""
-    print(f"Checking for S3 object: s3://{bucket}/{key}")
-    command = ["aws", "s3api", "head-object", "--bucket", bucket, "--key", key]
-    # We expect this command to fail if the object doesn't exist, so we capture the return code.
-    # We redirect stdout and stderr to DEVNULL to keep the output clean.
-    result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return result.returncode == 0
 
 
 def get_service_dependencies(services_dir):

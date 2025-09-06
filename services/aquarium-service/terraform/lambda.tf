@@ -35,7 +35,6 @@ resource "aws_lambda_function" "main" {
   environment {
     variables = {
       DB_SECRET_ARN = data.terraform_remote_state.core.outputs.db_credentials_secret_arn
-      DB_ENDPOINT   = data.terraform_remote_state.core.outputs.db_instance_endpoint
     }
   }
 }

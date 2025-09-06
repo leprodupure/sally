@@ -36,6 +36,12 @@ fi
 echo "Staging artifacts for packaging..."
 mkdir -p "$STAGING_DIR"
 cp -r "$TERRAFORM_DIR" "$STAGING_DIR"/
+if [ -d "alembic" ]; then
+  cp -r "alembic" "$STAGING_DIR"/
+fi
+if [ -f "alembic.ini" ]; then
+  cp "alembic.ini" "$STAGING_DIR"/
+fi
 if [ -f "$LAMBDA_ARCHIVE" ]; then
   cp "$LAMBDA_ARCHIVE" "$STAGING_DIR"/
 fi
