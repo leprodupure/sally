@@ -70,33 +70,23 @@ jobs:
           unzip -o "${PACKAGE_TO_UNZIP}" -d .
           # The package contains a 'terraform' directory, so we can now work with it.
 
-      - name: Get Core Infra Outputs
-        id: core-outputs
-        if: inputs.environment != 'global' && hashFiles('alembic.ini') != '' # only run when a sql migration script is present.
-        run: |
-          # Temporarily initialize a lightweight terraform config to read remote state
-          cat > core_outputs.tf <<EOF
-          terraform {
-            backend "s3" {}
-          }
-          EOF
-          terraform init -reconfigure -backend-config="bucket=sally-terraform-state-bucket" -backend-config="key=${{ inputs.stack }}/services/core-infra/terraform.tfstate" -backend-config="region=eu-west-3"
-          echo "db_secret_arn=$(terraform output -raw db_credentials_secret_arn)" >> $GITHUB_OUTPUT
-        working-directory: .
-
-      - name: Run Database Migrations (if applicable)
+      - name: Run Database Migrations via Lambda (if applicable)
         if: inputs.environment != 'global' && hashFiles('alembic.ini') != ''
         run: |
-          echo "--- Found alembic.ini, running database migrations... ---"
-          # The env.py script will use the same environment variables as the app to connect
-          # We need to install alembic and the db driver first
-          pip install alembic psycopg2-binary boto3
-          mkdir -p src
-          unzip -o *-lambda.zip -d src
-          alembic upgrade head
-        env:
-          # These are needed by the alembic env.py to connect to the database
-          DB_SECRET_ARN: ${{ steps.core-outputs.outputs.db_secret_arn }}
+          echo "--- Found alembic.ini, invoking migration runner Lambda... ---"
+          SERVICE_NAME=$(basename "${{ inputs.service-path }}")
+          S3_BUCKET="sally-package-registry"
+          S3_KEY="packages/${SERVICE_NAME}-${{ inputs.stack }}.zip"
+          FUNCTION_NAME="sally-${{ inputs.stack }}-migration-runner"
+
+          PAYLOAD=$(jq -n --arg bucket "$S3_BUCKET" --arg key "$S3_KEY" '{s3_bucket: $bucket, s3_key: $key}')
+
+          aws lambda invoke \
+            --function-name "$FUNCTION_NAME" \
+            --payload "$PAYLOAD" \
+            --cli-binary-format raw-in-base64-out \
+            --log-type Tail \
+            output.json
 
       - name: Terraform Init
         run: |
