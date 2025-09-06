@@ -5,10 +5,10 @@ resource "aws_iam_role" "migration_runner_lambda_exec" {
   name = "${var.project_name}-${var.stack}-migration-runner-lambda-role"
 
   assume_role_policy = jsonencode({
-    Version   = "2012-10-17"
+    Version = "2012-10-17"
     Statement = [{
-      Action    = "sts:AssumeRole"
-      Effect    = "Allow"
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
       Principal = {
         Service = "lambda.amazonaws.com"
       }
@@ -26,7 +26,7 @@ resource "aws_iam_role_policy" "migration_runner_policy" {
   role = aws_iam_role.migration_runner_lambda_exec.id
 
   policy = jsonencode({
-    Version   = "2012-10-17"
+    Version = "2012-10-17"
     Statement = [
       {
         Action   = "secretsmanager:GetSecretValue"
@@ -47,7 +47,7 @@ resource "aws_lambda_function" "migration_runner" {
   handler       = "migration_runner.handler"
   runtime       = "python3.12"
   role          = aws_iam_role.migration_runner_lambda_exec.arn
-  timeout       = 300 # Migrations can take time
+  timeout       = 60 # Migrations can take time
 
   # The code for this lambda is built and packaged with the core-infra service
   package_type     = "Zip"
@@ -55,7 +55,7 @@ resource "aws_lambda_function" "migration_runner" {
   source_code_hash = filebase64sha256("../core-infra-lambda.zip")
 
   vpc_config {
-    subnet_ids         = data.terraform_remote_state.core.outputs.private_subnet_ids
+    subnet_ids         = aws_subnet.private[*].id
     security_group_ids = [aws_security_group.db.id] # Re-use the DB security group for simplicity
   }
 
