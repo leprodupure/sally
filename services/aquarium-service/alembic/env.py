@@ -19,7 +19,8 @@ if config.config_file_name is not None:
 # add your model's MetaData object here
 # for 'autogenerate' support
 # from myapp import mymodel
-# The migration runner extracts all source files to the current directory.
+import sys
+sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), '..')))
 from models import Base
 target_metadata = Base.metadata
 
