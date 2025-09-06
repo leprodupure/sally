@@ -41,9 +41,7 @@ resource "aws_security_group" "db" {
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    # This is a broad rule. A better practice is to be more specific.
-    # We will allow traffic from the migration lambda's security group.
-    source_security_group_id = aws_security_group.migration_runner_lambda.id
+    cidr_blocks = [aws_vpc.main.cidr_block] # Allows access from any resource in the VPC
   }
 
   egress {
