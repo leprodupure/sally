@@ -33,8 +33,12 @@ mkdir -p "$OUTPUT_DIR"
 cp -r "$SRC_DIR"/* "$OUTPUT_DIR"/
 
 # 3. Install production dependencies into the output directory
-echo "Installing dependencies from '$REQUIREMENTS_FILE' into '$OUTPUT_DIR'..."
-pip install --target "$OUTPUT_DIR" -r "$REQUIREMENTS_FILE"
+if [ -f "$REQUIREMENTS_FILE" ]; then
+  echo "Installing dependencies from '$REQUIREMENTS_FILE' into '$OUTPUT_DIR'..."
+  pip install --target "$OUTPUT_DIR" -r "$REQUIREMENTS_FILE"
+else
+  echo "No '$REQUIREMENTS_FILE' found. Skipping dependency installation."
+fi
 
 # 4. Create the zip archive
 echo "Creating deployment archive: '$ARCHIVE_NAME'..."
