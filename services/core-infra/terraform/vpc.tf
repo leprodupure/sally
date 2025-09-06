@@ -67,13 +67,29 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
+# --- Private Route Table ---
+# It's a best practice for private subnets to have their own route table.
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = "${var.project_name}-${var.stack}-${var.module_name}-private-rt"
+  }
+}
+
+resource "aws_route_table_association" "private" {
+  count          = length(aws_subnet.private)
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private.id
+}
+
 # --- VPC Endpoint for S3 ---
 # This allows resources in the private subnets (like our Lambdas) to access S3
 # without needing a NAT Gateway or public internet access.
 resource "aws_vpc_endpoint" "s3" {
   vpc_id       = aws_vpc.main.id
   service_name = "com.amazonaws.${var.aws_region}.s3"
-  route_table_ids = [for subnet in aws_subnet.private : aws_route_table.public.id] # This is a simplification; a better setup would have dedicated route tables for private subnets
+  route_table_ids = [aws_route_table.private.id] # Associate with the private route table
 }
 
 # Note: A production setup would include NAT Gateways for private subnets to access the internet.
