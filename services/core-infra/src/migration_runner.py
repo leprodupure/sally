@@ -32,6 +32,15 @@ def handler(event, context):
     with zipfile.ZipFile(io.BytesIO(zip_content)) as z:
         z.extractall(extract_dir)
 
+    # --- Nested Unzip for Lambda Code ---
+    # The application source code, including models, is inside the lambda.zip.
+    # We need to find it and extract it so Alembic can see the models.
+    lambda_zip_path = next((os.path.join(extract_dir, f) for f in os.listdir(extract_dir) if f.endswith("-lambda.zip")), None)
+    if lambda_zip_path:
+        print(f"Found lambda package at {lambda_zip_path}, extracting...")
+        with zipfile.ZipFile(lambda_zip_path, 'r') as z:
+            z.extractall(extract_dir)
+
     alembic_ini_path = os.path.join(extract_dir, "alembic.ini")
     if os.path.exists(alembic_ini_path):
         print("Found alembic.ini, running migrations...")
