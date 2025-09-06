@@ -59,6 +59,16 @@ resource "aws_security_group" "migration_runner_lambda" {
   }
 }
 
+resource "aws_security_group_rule" "allow_db_access_from_migration_runner" {
+  type                     = "ingress"
+  from_port                = 5432
+  to_port                  = 5432
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.migration_runner_lambda.id
+  security_group_id        = aws_security_group.db.id
+  description              = "Allow migration runner to connect to the database"
+}
+
 resource "aws_lambda_function" "migration_runner" {
   function_name = "${var.project_name}-${var.stack}-migration-runner"
   handler       = "migration_runner.handler"
