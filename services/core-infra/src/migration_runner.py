@@ -1,9 +1,10 @@
 import os
-import subprocess
 import shutil
 import boto3
 import zipfile
 import io
+from alembic.config import Config
+from alembic import command
 
 s3_client = boto3.client('s3')
 def handler(event, context):
@@ -31,10 +32,14 @@ def handler(event, context):
     with zipfile.ZipFile(io.BytesIO(zip_content)) as z:
         z.extractall(extract_dir)
 
-    if os.path.exists(os.path.join(extract_dir, "alembic.ini")):
+    alembic_ini_path = os.path.join(extract_dir, "alembic.ini")
+    if os.path.exists(alembic_ini_path):
         print("Found alembic.ini, running migrations...")
-        # The env.py script will use the same environment variables as the app to connect
-        subprocess.check_call(["alembic", "upgrade", "head"], cwd=extract_dir)
+        # Create an Alembic Config object and point it to the right script location
+        alembic_cfg = Config(alembic_ini_path)
+        alembic_cfg.set_main_option("script_location", os.path.join(extract_dir, "alembic"))
+        # Run the 'upgrade' command programmatically
+        command.upgrade(alembic_cfg, "head")
         print("Migrations completed successfully.")
 
         print(f"Cleaning the extraction directory {extract_dir} ...")
