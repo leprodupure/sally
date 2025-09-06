@@ -61,7 +61,7 @@ resource "aws_security_group_rule" "db_egress" {
 resource "aws_db_instance" "main" {
   identifier             = "${var.project_name}-${var.stack}-${var.module_name}-db"
   engine                 = "postgres"
-  engine_version         = "15.5"
+  engine_version         = "15"
   instance_class         = "db.t3.micro" # Free Tier eligible
   allocated_storage      = 20            # Free Tier eligible
   storage_type           = "gp2"
