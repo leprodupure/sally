@@ -18,6 +18,11 @@ output "db_credentials_secret_arn" {
   value       = aws_secretsmanager_secret.db_credentials.arn
 }
 
+output "db_security_group_id" {
+  description = "The ID of the security group for the RDS database."
+  value       = aws_security_group.db.id
+}
+
 output "api_gateway_id" {
   description = "The ID of the core API Gateway."
   value       = aws_api_gateway_rest_api.main.id
