@@ -80,11 +80,23 @@ jobs:
           PAYLOAD=$(jq -n --arg key "$S3_KEY" '{s3_key: $key}')
 
           aws lambda invoke \
+            --invocation-type RequestResponse \
             --function-name "$FUNCTION_NAME" \
             --payload "$PAYLOAD" \
             --cli-binary-format raw-in-base64-out \
             --log-type Tail \
             output.json
+          
+          # Check the output of the Lambda function
+          STATUS_CODE=$(jq -r '.StatusCode' output.json)
+          FUNCTION_ERROR=$(jq -r '.FunctionError' output.json)
+
+          if [ "$STATUS_CODE" != "200" ] || [ "$FUNCTION_ERROR" != "null" ]; then
+            echo "::error::Lambda migration failed!"
+            jq '.' output.json # Print the full error output
+            exit 1
+          fi
+          echo "Lambda migration successful."
 
       - name: Terraform Init
         run: |
