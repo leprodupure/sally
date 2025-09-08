@@ -8,6 +8,7 @@ from database import Base
 # SQLAlchemy model for the 'aquariums' table
 class AquariumDB(Base):
     __tablename__ = "aquariums"
+    __table_args__ = {"schema": "aquarium"}
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, index=True, nullable=False)

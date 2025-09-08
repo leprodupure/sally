@@ -63,7 +63,8 @@ jobs:
               - 'services/core-infra/**'
             aquarium-service:
               - 'services/aquarium-service/**'
-            # Add other services here as they are created
+            measurement-service:
+              - 'services/measurement-service/**'
 
   # --- Initial Job: Deploy Global Infrastructure ---
   # This job deploys shared resources like the S3 package registry.
