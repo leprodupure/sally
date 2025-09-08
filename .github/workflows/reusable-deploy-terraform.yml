@@ -143,11 +143,7 @@ jobs:
       - name: Terraform Apply
         if: inputs.action == 'apply' && (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
         run: |
-          # During tear-down of the environment, the package is not downloaded/extracted. Thus, the terraform/ folder 
-          # does not exist. Otherwise, cd to this folder.
-          if [ -d "terraform" ]; then
-            cd ./terraform
-          fi
+
           TF_VARS=""
           if [ "${{ inputs.environment }}" != "global" ]; then
             cp "../environments/common.tfvars" .
@@ -155,7 +151,7 @@ jobs:
             TF_VARS="-var-file=common.tfvars -var-file=${{ inputs.environment }}.tfvars"
           fi
           terraform apply -auto-approve -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
-        working-directory: ./${{ inputs.workdir }}
+        working-directory: ./${{ inputs.workdir }}/terraform
 
       - name: Terraform Destroy
         if: inputs.action == 'destroy'
