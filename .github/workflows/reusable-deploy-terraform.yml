@@ -167,7 +167,7 @@ jobs:
             TF_VARS="-var-file=common.tfvars -var-file=${{ inputs.environment }}.tfvars"
           fi
           terraform destroy -auto-approve -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
-        working-directory: ./${{ inputs.workdir }}/terraform
+        working-directory: ./${{ inputs.workdir }}
 
       - name: Terraform Destroy
         if: inputs.action == 'destroy'
