@@ -15,7 +15,7 @@ fileConfig(config.config_file_name)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from src.models import Base
+from models import Base
 target_metadata = Base.metadata
 
 def get_url():
