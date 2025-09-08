@@ -76,24 +76,3 @@ resource "aws_db_instance" "main" {
     ignore_changes = [password]
   }
 }
-
-# --- PostgreSQL Provider and Schemas ---
-provider "postgresql" {
-  host            = aws_db_instance.main.address
-  port            = 5432
-  username        = var.db_username
-  password        = random_password.db_password.result
-  sslmode         = "require"
-  connect_timeout = 15
-  database        = var.project_name
-}
-
-resource "postgresql_schema" "aquarium_schema" {
-  name = "aquarium"
-  depends_on = [aws_db_instance.main]
-}
-
-resource "postgresql_schema" "measurement_schema" {
-  name = "measurement"
-  depends_on = [aws_db_instance.main]
-}

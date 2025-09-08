@@ -17,6 +17,7 @@ depends_on = None
 
 
 def upgrade():
+    op.execute("CREATE SCHEMA IF NOT EXISTS measurement;")
     op.create_table(
         'measurements',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -42,3 +43,4 @@ def downgrade():
     op.drop_index(op.f('ix_measurements_user_id'), table_name='measurements', schema='measurement')
     op.drop_index(op.f('ix_measurements_id'), table_name='measurements', schema='measurement')
     op.drop_table('measurements', schema='measurement')
+    op.execute("DROP SCHEMA IF EXISTS measurement CASCADE;")
