@@ -168,7 +168,6 @@ jobs:
   # These jobs run when a pull request is closed to destroy the temporary environment in reverse order.
   destroy-batch-1:
     name: Teardown Preview Environment (Batch 1)
-    runs-on: ubuntu-latest
     needs: [ calculate-plan ]
     if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' && fromJson(needs.calculate-plan.outputs.matrix).batch[1] }}
     strategy:
@@ -188,7 +187,6 @@ jobs:
 
   destroy-batch-0:
     name: Teardown Preview Environment (Batch 0)
-    runs-on: ubuntu-latest
     needs: [ calculate-plan, destroy-batch-1 ]
     if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' && fromJson(needs.calculate-plan.outputs.matrix).batch[0] }}
     strategy:
