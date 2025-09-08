@@ -3,6 +3,10 @@ name: Reusable - Deploy Terraform
 on:
   workflow_call:
     inputs:
+      action:
+        required: false
+        type: string
+        default: 'apply'
       workdir:
         required: true
         type: string
@@ -22,7 +26,7 @@ on:
         required: true
 
 jobs:
-  deploy:
+  terraform:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -45,7 +49,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Download and Unpack Deployment Package
-        if: inputs.environment != 'global'
+        if: inputs.action == 'apply' && inputs.environment != 'global'
         run: |
           # Define package names for both the specific stack (e.g., pr123) and the fallback (rc)
           # The service name is derived from the service-path input
@@ -71,7 +75,7 @@ jobs:
           # The package contains a 'terraform' directory, so we can now work with it.
 
       - name: Run Database Migrations via Lambda (if applicable)
-        if: inputs.environment != 'global' && hashFiles('alembic.ini') != ''
+        if: inputs.action == 'apply' && inputs.environment != 'global' && hashFiles('alembic.ini') != ''
         run: |
           echo "--- Found alembic.ini, invoking migration runner Lambda... ---"
           SERVICE_NAME=$(basename "${{ inputs.service-path }}")
@@ -137,7 +141,7 @@ jobs:
         working-directory: ./${{ inputs.workdir }}/terraform
 
       - name: Terraform Apply
-        if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+        if: inputs.action == 'apply' && (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
         run: |
           # During tear-down of the environment, the package is not downloaded/extracted. Thus, the terraform/ folder 
           # does not exist. Otherwise, cd to this folder.
@@ -152,3 +156,15 @@ jobs:
           fi
           terraform apply -auto-approve -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
         working-directory: ./${{ inputs.workdir }}
+
+      - name: Terraform Destroy
+        if: inputs.action == 'destroy'
+        run: |
+          TF_VARS=""
+          if [ "${{ inputs.environment }}" != "global" ]; then
+            cp "../environments/common.tfvars" .
+            cp "../environments/${{ inputs.environment }}.tfvars" .
+            TF_VARS="-var-file=common.tfvars -var-file=${{ inputs.environment }}.tfvars"
+          fi
+          terraform destroy -auto-approve -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
+        working-directory: ./${{ inputs.workdir }}/terraform
