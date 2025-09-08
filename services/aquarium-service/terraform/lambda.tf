@@ -2,7 +2,7 @@
 resource "aws_security_group" "lambda" {
   name        = "${var.project_name}-${var.stack}-${var.module_name}-lambda-sg"
   description = "Security group for the Aquarium Service Lambda function"
-  vpc_id      = data.terraform_remote_state.core.outputs.vpc_id
+  vpc_id      = data.terraform_remote_state.global_infra.outputs.vpc_id
 
   # Allow all outbound traffic
   egress {
@@ -28,7 +28,7 @@ resource "aws_lambda_function" "main" {
   source_code_hash = filebase64sha256("../${var.module_name}-lambda.zip")
 
   vpc_config {
-    subnet_ids         = data.terraform_remote_state.core.outputs.private_subnet_ids
+    subnet_ids         = data.terraform_remote_state.global_infra.outputs.private_subnet_ids
     security_group_ids = [aws_security_group.lambda.id]
   }
 

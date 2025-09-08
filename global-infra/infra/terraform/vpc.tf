@@ -10,9 +10,8 @@ resource "aws_vpc" "main" {
   enable_dns_hostnames = true
 
   tags = {
-    Name        = "${var.project_name}-${var.stack}-${var.module_name}-vpc"
-    Project     = var.project_name
-    Environment = var.stack
+    Name    = "${var.project_name}-vpc"
+    Project = var.project_name
   }
 }
 
@@ -25,7 +24,7 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "${var.project_name}-${var.stack}-${var.module_name}-public-subnet-${count.index + 1}"
+    Name = "${var.project_name}-public-subnet-${count.index + 1}"
   }
 }
 
@@ -36,7 +35,7 @@ resource "aws_subnet" "private" {
   availability_zone = data.aws_availability_zones.available.names[count.index]
 
   tags = {
-    Name = "${var.project_name}-${var.stack}-${var.module_name}-private-subnet-${count.index + 1}"
+    Name = "${var.project_name}-private-subnet-${count.index + 1}"
   }
 }
 
@@ -44,7 +43,7 @@ resource "aws_subnet" "private" {
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
   tags = {
-    Name = "${var.project_name}-${var.stack}-${var.module_name}-igw"
+    Name = "${var.project_name}-igw"
   }
 }
 
@@ -57,7 +56,7 @@ resource "aws_route_table" "public" {
   }
 
   tags = {
-    Name = "${var.project_name}-${var.stack}-${var.module_name}-public-rt"
+    Name = "${var.project_name}-public-rt"
   }
 }
 
@@ -68,12 +67,11 @@ resource "aws_route_table_association" "public" {
 }
 
 # --- Private Route Table ---
-# It's a best practice for private subnets to have their own route table.
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    Name = "${var.project_name}-${var.stack}-${var.module_name}-private-rt"
+    Name = "${var.project_name}-private-rt"
   }
 }
 
@@ -85,7 +83,7 @@ resource "aws_route_table_association" "private" {
 
 # --- VPC Endpoints ---
 resource "aws_security_group" "vpc_endpoints" {
-  name        = "${var.project_name}-${var.stack}-vpc-endpoints-sg"
+  name        = "${var.project_name}-vpc-endpoints-sg"
   description = "Security group for VPC endpoints"
   vpc_id      = aws_vpc.main.id
 }
@@ -101,7 +99,6 @@ resource "aws_security_group_rule" "allow_vpc_to_vpc_endpoints" {
 }
 
 # This allows resources in the private subnets (like our Lambdas) to access S3
-# without needing a NAT Gateway or public internet access.
 resource "aws_vpc_endpoint" "s3" {
   vpc_id          = aws_vpc.main.id
   service_name    = "com.amazonaws.${var.aws_region}.s3"
@@ -117,7 +114,3 @@ resource "aws_vpc_endpoint" "secretsmanager" {
   subnet_ids          = aws_subnet.private[*].id
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
 }
-
-# Note: A production setup would include NAT Gateways for private subnets to access the internet.
-# This has been omitted to simplify the setup and avoid costs not covered by the Free Tier.
-# Lambda functions in private subnets will need VPC Endpoints to access AWS services.
