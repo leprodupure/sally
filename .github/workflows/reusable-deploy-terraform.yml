@@ -74,10 +74,24 @@ jobs:
         if: inputs.environment != 'global' && hashFiles('alembic.ini') != ''
         run: |
           echo "--- Found alembic.ini, invoking migration runner Lambda... ---"
-          S3_KEY="packages/$(basename "${{ inputs.service-path }}")-${{ inputs.stack }}.zip"
+          SERVICE_NAME=$(basename "${{ inputs.service-path }}")
+          S3_BUCKET="sally-package-registry"
+          PR_S3_KEY="packages/${SERVICE_NAME}-${{ inputs.stack }}.zip"
+          RC_S3_KEY="packages/${SERVICE_NAME}-rc.zip"
+          S3_KEY_TO_USE=""
           FUNCTION_NAME="sally-${{ inputs.stack }}-migration-runner"
 
-          PAYLOAD=$(jq -n --arg key "$S3_KEY" '{s3_key: $key}')
+          echo "Checking for PR-specific package: s3://${S3_BUCKET}/${PR_S3_KEY}"
+          if aws s3api head-object --bucket "${S3_BUCKET}" --key "${PR_S3_KEY}" >/dev/null 2>&1; then
+            echo "PR-specific package found. Using ${PR_S3_KEY}"
+            S3_KEY_TO_USE="${PR_S3_KEY}"
+          else
+            echo "PR-specific package not found. Falling back to RC package: ${RC_S3_KEY}"
+            S3_KEY_TO_USE="${RC_S3_KEY}"
+          fi
+
+          echo "Invoking Lambda with payload: {s3_key: ${S3_KEY_TO_USE}}"
+          PAYLOAD=$(jq -n --arg key "$S3_KEY_TO_USE" '{s3_key: $key}')
 
           aws lambda invoke \
             --invocation-type RequestResponse \
