@@ -5,6 +5,7 @@ on:
     branches:
       - main
   pull_request:
+    types: [opened, synchronize, reopened, closed]
     paths:
       - 'services/**'
       - 'global-infra/**'
@@ -68,7 +69,7 @@ jobs:
   # This job deploys shared resources like the S3 package registry.
   deploy-global-infra:
     needs: [ detect-changes ]
-    if: needs.detect-changes.outputs.global-infra != '[]'
+    if: github.event.action != 'closed' && needs.detect-changes.outputs.global-infra != '[]'
     permissions:
       contents: read
       id-token: write # Required for OIDC authentication with AWS
@@ -87,7 +88,7 @@ jobs:
     strategy:
       matrix:
         service: ${{ fromJson(needs.detect-changes.outputs.services) }}
-    if: ${{ !(failure() || cancelled()) && needs.detect-changes.outputs.services != '[]' }}
+    if: ${{ github.event.action != 'closed' && !(failure() || cancelled()) && needs.detect-changes.outputs.services != '[]' }}
     permissions:
       contents: read
       id-token: write # Required for OIDC authentication with AWS
@@ -128,10 +129,10 @@ jobs:
           aws s3 cp "${PACKAGE_NAME}" "s3://${S3_BUCKET}/${S3_KEY}"
         working-directory: ./services/${{ matrix.service }}
 
-  # --- Phase 2, Step 2: Deploy Services in Static, Parallel Batches ---
+  # --- Phase 2: Deploy Services in Static, Parallel Batches ---
   deploy-batch-0:
     needs: [ calculate-plan, build-and-package ]
-    if: ${{ !(failure() || cancelled()) && needs.calculate-plan.outputs.matrix != '' && fromJson(needs.calculate-plan.outputs.matrix).batch[0] }}
+    if: ${{ !(failure() || cancelled()) && github.event.action != 'closed' && needs.calculate-plan.outputs.matrix != '' && fromJson(needs.calculate-plan.outputs.matrix).batch[0] }}
     strategy:
       matrix:
         service: ${{ fromJson(needs.calculate-plan.outputs.matrix).batch[0] }}
@@ -148,7 +149,7 @@ jobs:
 
   deploy-batch-1:
     needs: [ calculate-plan, deploy-batch-0 ]
-    if: ${{ !(failure() || cancelled()) && needs.calculate-plan.outputs.matrix != '' && fromJson(needs.calculate-plan.outputs.matrix).batch[1] }}
+    if: ${{ !(failure() || cancelled()) && github.event.action != 'closed' && needs.calculate-plan.outputs.matrix != '' && fromJson(needs.calculate-plan.outputs.matrix).batch[1] }}
     strategy:
       matrix:
         service: ${{ fromJson(needs.calculate-plan.outputs.matrix).batch[1] }}
@@ -163,4 +164,42 @@ jobs:
       contents: read
       id-token: write # Required for OIDC authentication with AWS
 
-  # You can add more deploy-batch-N jobs here if you expect more levels of dependency.
+  # --- Phase 3: Teardown Preview Environments ---
+  # These jobs run when a pull request is closed to destroy the temporary environment in reverse order.
+  destroy-batch-1:
+    name: Teardown Preview Environment (Batch 1)
+    needs: [ calculate-plan ]
+    if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' && fromJson(needs.calculate-plan.outputs.matrix).batch[1] }}
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.calculate-plan.outputs.matrix).batch[1] }}
+    uses: ./.github/workflows/reusable-deploy-terraform.yml
+    with:
+      action: 'destroy'
+      workdir: .
+      service-path: services/${{ matrix.service }}
+      environment: 'temp'
+      stack: pr${{ github.event.pull_request.number }}
+    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write
+
+  destroy-batch-0:
+    name: Teardown Preview Environment (Batch 0)
+    needs: [ calculate-plan, destroy-batch-1 ]
+    if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' && fromJson(needs.calculate-plan.outputs.matrix).batch[0] }}
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.calculate-plan.outputs.matrix).batch[0] }}
+    uses: ./.github/workflows/reusable-deploy-terraform.yml
+    with:
+      action: 'destroy'
+      workdir: .
+      service-path: services/${{ matrix.service }}
+      environment: 'temp'
+      stack: pr${{ github.event.pull_request.number }}
+    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write
