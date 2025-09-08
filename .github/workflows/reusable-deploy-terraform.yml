@@ -116,17 +116,13 @@ jobs:
           echo "Lambda migration successful."
 
       - name: Terraform Init
+        if: inputs.action == 'apply' && (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
         run: |
-          # During tear-down of the environment, the package is not downloaded/extracted. Thus, the terraform/ folder 
-          # does not exist. Otherwise, cd to this folder.
-          if [ -d "terraform" ]; then
-            cd ./terraform
-          fi
           terraform init \
             -backend-config="bucket=sally-terraform-state-bucket" \
             -backend-config="key=${{ inputs.stack }}/${{ inputs.service-path }}/terraform.tfstate" \
             -backend-config="region=eu-west-3"
-        working-directory: ./${{ inputs.workdir }}
+        working-directory: ./${{ inputs.workdir }}/terraform
 
       - name: Terraform Apply
         if: inputs.action == 'apply' && (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
@@ -141,13 +137,22 @@ jobs:
           terraform apply -auto-approve -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
         working-directory: ./${{ inputs.workdir }}/terraform
 
+      - name: Terraform Init Destroy
+        if: inputs.action == 'destroy'
+        run: |
+          terraform init \
+            -backend-config="bucket=sally-terraform-state-bucket" \
+            -backend-config="key=${{ inputs.stack }}/${{ inputs.service-path }}/terraform.tfstate" \
+            -backend-config="region=eu-west-3"
+        working-directory: ./${{ inputs.workdir }}
+
       - name: Terraform Destroy
         if: inputs.action == 'destroy'
         run: |
           TF_VARS=""
           if [ "${{ inputs.environment }}" != "global" ]; then
-            cp "../environments/common.tfvars" .
-            cp "../environments/${{ inputs.environment }}.tfvars" .
+            cp "environments/common.tfvars" .
+            cp "environments/${{ inputs.environment }}.tfvars" .
             TF_VARS="-var-file=common.tfvars -var-file=${{ inputs.environment }}.tfvars"
           fi
           terraform destroy -auto-approve -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
