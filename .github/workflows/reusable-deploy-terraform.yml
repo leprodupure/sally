@@ -168,3 +168,15 @@ jobs:
           fi
           terraform destroy -auto-approve -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
         working-directory: ./${{ inputs.workdir }}/terraform
+
+      - name: Terraform Destroy
+        if: inputs.action == 'destroy'
+        run: |
+          TF_VARS=""
+          if [ "${{ inputs.environment }}" != "global" ]; then
+            cp "../environments/common.tfvars" .
+            cp "../environments/${{ inputs.environment }}.tfvars" .
+            TF_VARS="-var-file=common.tfvars -var-file=${{ inputs.environment }}.tfvars"
+          fi
+          terraform destroy -auto-approve -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
+        working-directory: ./${{ inputs.workdir }}/terraform
