@@ -48,7 +48,7 @@ resource "aws_iam_role_policy" "migration_runner_policy" {
 resource "aws_security_group" "migration_runner_lambda" {
   name        = "${var.project_name}-${var.stack}-migration-runner-lambda-sg"
   description = "Security group for the Migration Runner Lambda function"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = data.terraform_remote_state.global_infra.outputs.vpc_id
 
   # Allow all outbound traffic
   egress {
@@ -82,7 +82,7 @@ resource "aws_lambda_function" "migration_runner" {
   source_code_hash = filebase64sha256("../core-infra-lambda.zip")
 
   vpc_config {
-    subnet_ids         = aws_subnet.private[*].id
+    subnet_ids         = data.terraform_remote_state.global_infra.outputs.private_subnet_ids
     security_group_ids = [aws_security_group.migration_runner_lambda.id]
   }
 

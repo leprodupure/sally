@@ -25,7 +25,7 @@ resource "aws_secretsmanager_secret_version" "db_credentials" {
 # --- Database Resources ---
 resource "aws_db_subnet_group" "main" {
   name       = "${var.project_name}-${var.stack}-${var.module_name}-sng"
-  subnet_ids = aws_subnet.private[*].id
+  subnet_ids = data.terraform_remote_state.global_infra.outputs.private_subnet_ids
 
   tags = {
     Name = "${var.project_name}-${var.stack}-${var.module_name}-sng"
@@ -35,7 +35,7 @@ resource "aws_db_subnet_group" "main" {
 resource "aws_security_group" "db" {
   name        = "${var.project_name}-${var.stack}-${var.module_name}-db-sg"
   description = "Allow PostgreSQL traffic from within the VPC"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = data.terraform_remote_state.global_infra.outputs.vpc_id
 }
 
 resource "aws_security_group_rule" "db_ingress" {
@@ -43,7 +43,7 @@ resource "aws_security_group_rule" "db_ingress" {
   from_port         = 5432
   to_port           = 5432
   protocol          = "tcp"
-  cidr_blocks       = [aws_vpc.main.cidr_block]
+  cidr_blocks       = data.terraform_remote_state.global_infra.outputs.private_subnet_cidr_blocks
   security_group_id = aws_security_group.db.id
   description       = "Allow PostgreSQL traffic from within the VPC"
 }

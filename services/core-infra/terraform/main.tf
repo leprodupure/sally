@@ -18,3 +18,19 @@ terraform {
     }
   }
 }
+
+provider "aws" {
+  region = var.aws_region
+}
+
+# --- Global Infra Remote State ---
+# This data source reads the outputs from the global-infra module,
+# allowing this service to access shared resources like the VPC and subnets.
+data "terraform_remote_state" "global_infra" {
+  backend = "s3"
+  config = {
+    bucket = "sally-terraform-state-bucket"
+    key    = "global/global-infra/infra/terraform.tfstate"
+    region = "eu-west-3"
+  }
+}
