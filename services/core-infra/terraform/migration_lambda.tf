@@ -34,11 +34,11 @@ resource "aws_iam_role_policy" "migration_runner_policy" {
         Resource = aws_secretsmanager_secret.db_credentials.arn
       },
       {
-        Action   = ["s3:GetObject"]
+        Action   = ["s3:GetObject", "s3:ListBucket"]
         Effect   = "Allow"
         Resource = [
           "arn:aws:s3:::${var.s3_package_registry_bucket_name}/*", # Grant access to the objects
-          "arn:aws:s3:::${var.s3_package_registry_bucket_name}"  # Grant access to the bucket itself (for operations like ListBucket)
+          "arn:aws:s3:::${var.s3_package_registry_bucket_name}"  # Grant access to the bucket itself (for ListBucket)
         ]
       }
     ]
