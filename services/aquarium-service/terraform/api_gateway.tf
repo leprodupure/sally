@@ -33,6 +33,6 @@ resource "aws_lambda_permission" "api_gw" {
   function_name = aws_lambda_function.main.function_name
   principal     = "apigateway.amazonaws.com"
 
-  # The ARN of the API Gateway. This is a broad permission, but necessary for the proxy integration.
-  source_arn = "${data.terraform_remote_state.core.outputs.api_gateway_execution_arn}/*/*"
+  # The ARN of the API Gateway. For HTTP APIs (v2), this must include the stage name.
+  source_arn = "${data.terraform_remote_state.core.outputs.api_gateway_execution_arn}/${var.stack}/*"
 }
