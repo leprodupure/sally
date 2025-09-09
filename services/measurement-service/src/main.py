@@ -3,10 +3,7 @@ from sqlalchemy.orm import Session
 from mangum import Mangum
 
 import models
-import schemas
 from database import SessionLocal, engine
-
-models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
@@ -22,8 +19,8 @@ def get_db():
 def get_user_id(event):
     return event['requestContext']['authorizer']['claims']['sub']
 
-@app.post("/measurements", response_model=schemas.Measurement)
-def create_measurement(measurement: schemas.MeasurementCreate, db: Session = Depends(get_db), event: dict = None):
+@app.post("/measurements", response_model=models.Measurement)
+def create_measurement(measurement: models.MeasurementCreate, db: Session = Depends(get_db), event: dict = None):
     user_id = get_user_id(event)
     db_measurement = models.MeasurementDB(**measurement.dict(), user_id=user_id)
     db.add(db_measurement)
@@ -31,7 +28,7 @@ def create_measurement(measurement: schemas.MeasurementCreate, db: Session = Dep
     db.refresh(db_measurement)
     return db_measurement
 
-@app.get("/measurements", response_model=list[schemas.Measurement])
+@app.get("/measurements", response_model=list[models.Measurement])
 def read_measurements(aquarium_id: int, db: Session = Depends(get_db), event: dict = None):
     user_id = get_user_id(event)
     measurements = db.query(models.MeasurementDB).filter(

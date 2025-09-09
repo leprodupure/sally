@@ -4,10 +4,6 @@ from mangum import Mangum
 
 import crud, models, database
 
-# Create all database tables (if they don't exist) on startup
-# In a real production scenario, you might use a migration tool like Alembic
-database.Base.metadata.create_all(bind=database.engine)
-
 app = FastAPI(title="Aquarium Service")
 
 
