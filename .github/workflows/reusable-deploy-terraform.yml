@@ -113,7 +113,19 @@ jobs:
             -backend-config="bucket=sally-terraform-state-bucket" \
             -backend-config="key=${{ inputs.stack }}/${{ inputs.service-path }}/terraform.tfstate" \
             -backend-config="region=eu-west-3"
-        working-directory: ./terraform
+        working-directory: ./${{ inputs.workdir }}
+
+      - name: Terraform Plan
+        if: false
+        run: |
+          TF_VARS=""
+          if [ "${{ inputs.environment }}" != "global" ]; then
+            cp "../environments/common.tfvars" .
+            cp "../environments/${{ inputs.environment }}.tfvars" .
+            TF_VARS="-var-file=common.tfvars -var-file=${{ inputs.environment }}.tfvars"
+          fi
+          terraform plan -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
+        working-directory: ./${{ inputs.workdir }}/terraform
 
       - name: Terraform Apply
         if: inputs.action == 'apply'
@@ -135,6 +147,15 @@ jobs:
             -backend-config="key=${{ inputs.stack }}/${{ inputs.service-path }}/terraform.tfstate" \
             -backend-config="region=eu-west-3"
         working-directory: ./${{ inputs.service-path }}/terraform
+
+      - name: Terraform Init Destroy
+        if: inputs.action == 'destroy'
+        run: |
+          terraform init \
+            -backend-config="bucket=sally-terraform-state-bucket" \
+            -backend-config="key=${{ inputs.stack }}/${{ inputs.service-path }}/terraform.tfstate" \
+            -backend-config="region=eu-west-3"
+        working-directory: ./${{ inputs.workdir }}
 
       - name: Terraform Destroy
         if: inputs.action == 'destroy'
