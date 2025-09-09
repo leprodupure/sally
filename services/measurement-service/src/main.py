@@ -18,14 +18,15 @@ def get_db():
 # Dependency to get the current user's ID from the Cognito authorizer context
 def get_current_user_id(request: Request) -> str:
     # The user ID (sub) is passed by the API Gateway Cognito Authorizer
-    user_id = request.scope.get("aws.event", {}).get("requestContext", {}).get("authorizer", {}).get("claims", {}).get("sub")
+    # For HTTP API (v2) JWT authorizers, claims are nested under 'jwt'
+    user_id = request.scope.get("aws.event", {}).get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {}).get("sub")
     if not user_id:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
     return user_id
 
 @app.post("/measurements", response_model=models.Measurement)
 def create_measurement(measurement: models.MeasurementCreate, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
-    db_measurement = models.MeasurementDB(**measurement.dict(), user_id=user_id)
+    db_measurement = models.MeasurementDB(**measurement.model_dump(), user_id=user_id)
     db.add(db_measurement)
     db.commit()
     db.refresh(db_measurement)
