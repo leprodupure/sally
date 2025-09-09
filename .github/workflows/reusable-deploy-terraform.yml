@@ -51,28 +51,20 @@ jobs:
       - name: Download and Unpack Deployment Package
         if: inputs.action == 'apply' && inputs.environment != 'global'
         run: |
-          # Define package names for both the specific stack (e.g., pr123) and the fallback (rc)
-          # The service name is derived from the service-path input
           SERVICE_NAME=$(basename "${{ inputs.service-path }}")
-          STACK_PACKAGE_NAME="${SERVICE_NAME}-package.zip" # This is the name inside the S3 key
+          STACK_PACKAGE_NAME="${SERVICE_NAME}-package.zip"
           RC_PACKAGE_NAME="${SERVICE_NAME}-package.zip"
-
           S3_BUCKET="sally-package-registry"
-          # Construct the S3 key using the stack name (e.g., pr123, staging)
           STACK_S3_KEY="packages/${SERVICE_NAME}-${{ inputs.stack }}.zip"
           RC_S3_KEY="packages/${SERVICE_NAME}-rc.zip"
 
           echo "Attempting to download package: ${STACK_S3_KEY}"
-          # Try to download the stack-specific package. If it fails (||), try to download the rc package.
-          # The `aws s3 cp` command will exit with a non-zero status if the file is not found.
           (aws s3 cp "s3://${S3_BUCKET}/${STACK_S3_KEY}" "${STACK_PACKAGE_NAME}" && echo "Downloaded ${STACK_PACKAGE_NAME}") || \
           (aws s3 cp "s3://${S3_BUCKET}/${RC_S3_KEY}" "${RC_PACKAGE_NAME}" && echo "Downloaded fallback ${RC_PACKAGE_NAME}")
 
-          # Unzip whichever package was successfully downloaded
           PACKAGE_TO_UNZIP=$(ls *-package.zip | head -n 1)
           echo "Unpacking artifact: ${PACKAGE_TO_UNZIP}"
           unzip -o "${PACKAGE_TO_UNZIP}" -d .
-          # The package contains a 'terraform' directory, so we can now work with it.
 
       - name: Run Database Migrations via Lambda (if applicable)
         if: inputs.action == 'apply' && inputs.environment != 'global' && hashFiles('alembic.ini') != ''
@@ -105,62 +97,53 @@ jobs:
             --log-type Tail \
             output.json
           
-          # Check the output of the Lambda function
           STATUS=$(jq -r '.status' output.json)
           
           if [ "$STATUS" != "SUCCESS" ]; then
             echo "::error::Lambda migration failed!"
-            jq '.' output.json # Print the full error output
+            jq '.' output.json
             exit 1
           fi
           echo "Lambda migration successful."
 
-      - name: Terraform Init
+      - name: Terraform Init for Apply
+        if: inputs.action == 'apply'
         run: |
-          # During tear-down of the environment, the package is not downloaded/extracted. Thus, the terraform/ folder 
-          # does not exist. Otherwise, cd to this folder.
-          if [ -d "terraform" ]; then
-            cd ./terraform
-          fi
           terraform init \
             -backend-config="bucket=sally-terraform-state-bucket" \
             -backend-config="key=${{ inputs.stack }}/${{ inputs.service-path }}/terraform.tfstate" \
             -backend-config="region=eu-west-3"
-        working-directory: ./${{ inputs.workdir }}
-
-      - name: Terraform Plan
-        if: false
-        run: |
-          TF_VARS=""
-          if [ "${{ inputs.environment }}" != "global" ]; then
-            cp "../environments/common.tfvars" .
-            cp "../environments/${{ inputs.environment }}.tfvars" .
-            TF_VARS="-var-file=common.tfvars -var-file=${{ inputs.environment }}.tfvars"
-          fi
-          terraform plan -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
-        working-directory: ./${{ inputs.workdir }}/terraform
+        working-directory: ./terraform
 
       - name: Terraform Apply
-        if: inputs.action == 'apply' && (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
+        if: inputs.action == 'apply'
         run: |
-
           TF_VARS=""
           if [ "${{ inputs.environment }}" != "global" ]; then
-            cp "../environments/common.tfvars" .
-            cp "../environments/${{ inputs.environment }}.tfvars" .
+            cp ../environments/common.tfvars .
+            cp ../environments/${{ inputs.environment }}.tfvars .
             TF_VARS="-var-file=common.tfvars -var-file=${{ inputs.environment }}.tfvars"
           fi
           terraform apply -auto-approve -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
-        working-directory: ./${{ inputs.workdir }}/terraform
+        working-directory: ./terraform
+
+      - name: Terraform Init for Destroy
+        if: inputs.action == 'destroy'
+        run: |
+          terraform init \
+            -backend-config="bucket=sally-terraform-state-bucket" \
+            -backend-config="key=${{ inputs.stack }}/${{ inputs.service-path }}/terraform.tfstate" \
+            -backend-config="region=eu-west-3"
+        working-directory: ./${{ inputs.service-path }}/terraform
 
       - name: Terraform Destroy
         if: inputs.action == 'destroy'
         run: |
           TF_VARS=""
           if [ "${{ inputs.environment }}" != "global" ]; then
-            cp "../environments/common.tfvars" .
-            cp "../environments/${{ inputs.environment }}.tfvars" .
+            cp ../../../environments/common.tfvars .
+            cp ../../../environments/${{ inputs.environment }}.tfvars .
             TF_VARS="-var-file=common.tfvars -var-file=${{ inputs.environment }}.tfvars"
           fi
           terraform destroy -auto-approve -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
-        working-directory: ./${{ inputs.workdir }}
+        working-directory: ./${{ inputs.service-path }}/terraform
