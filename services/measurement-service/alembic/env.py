@@ -36,7 +36,11 @@ def get_url():
         print("         Local autogeneration will fail without a valid database connection.")
         return "postgresql://user:pass@localhost/sally"
     
-    from database import SQLALCHEMY_DATABASE_URL
+    # In the Lambda environment, the database module will be at the root.
+    try:
+        from src.database import SQLALCHEMY_DATABASE_URL
+    except ImportError:
+        from database import SQLALCHEMY_DATABASE_URL
     return SQLALCHEMY_DATABASE_URL
 
 def run_migrations_offline():
@@ -56,12 +60,14 @@ def run_migrations_offline():
 
 def run_migrations_online():
     """Run migrations in 'online' mode."""
-    configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = get_url()
+    # Set the sqlalchemy.url in the config object from our dynamic function
+    config.set_main_option("sqlalchemy.url", get_url())
+
     connectable = engine_from_config(
-        configuration,
-        prefix="s",
+        config.get_section(config.config_ini_section, {}),
+        prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args={"connect_timeout": 10}
     )
 
     with connectable.connect() as connection:

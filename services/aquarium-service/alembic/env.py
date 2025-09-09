@@ -1,8 +1,7 @@
 import os
-import json
-import boto3
 import sys
 from logging.config import fileConfig
+
 from sqlalchemy import engine_from_config, pool, text
 
 from alembic import context
@@ -29,30 +28,24 @@ except ImportError:
 
 target_metadata = Base.metadata
 
-def get_database_url():
-    """
-    Constructs the database URL from a JSON secret stored in an environment variable.
-    """
-    secret_arn = os.environ.get("DB_SECRET_ARN")
-    if not secret_arn:
-        raise ValueError("DB_SECRET_ARN environment variable not set.")
-
-    session = boto3.session.Session()
-    client = session.client(service_name='secretsmanager')
-    get_secret_value_response = client.get_secret_value(SecretId=secret_arn)
-    secret_string = get_secret_value_response['SecretString']
-
-    secret = json.loads(secret_string)
-    db_user = secret['username']
-    db_pass = secret['password']
-    db_host = secret['endpoint']
-    db_name = secret['db_name']
-    return f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}/{db_name}"
+def get_url():
+    """Get the database URL, handling the local development case."""
+    db_secret_arn = os.environ.get("DB_SECRET_ARN")
+    if not db_secret_arn:
+        print("WARNING: DB_SECRET_ARN not set. Using a placeholder database URL.")
+        print("         Local autogeneration will fail without a valid database connection.")
+        return "postgresql://user:pass@localhost/sally"
+    
+    # In the Lambda environment, the database module will be at the root.
+    try:
+        from src.database import SQLALCHEMY_DATABASE_URL
+    except ImportError:
+        from database import SQLALCHEMY_DATABASE_URL
+    return SQLALCHEMY_DATABASE_URL
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
-    url = get_database_url()
-    config.set_main_option("sqlalchemy.url", url)
+    url = get_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -66,7 +59,8 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-    config.set_main_option("sqlalchemy.url", get_database_url())
+    # Set the sqlalchemy.url in the config object from our dynamic function
+    config.set_main_option("sqlalchemy.url", get_url())
 
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
