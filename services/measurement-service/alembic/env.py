@@ -1,5 +1,6 @@
 from logging.config import fileConfig
 import os
+import sys
 
 from sqlalchemy import engine_from_config, pool, text
 
@@ -10,11 +11,21 @@ from alembic import context
 config = context.config
 
 # Interpret the config file for Python logging.
-fileConfig(config.config_file_name)
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
+
+# Add the project root to the Python path to allow imports from src/
+sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), '..')))
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from models import Base
+# This try/except block allows the script to work both locally (with a src/ dir)
+# and in the Lambda (where src/ is flattened).
+try:
+    from src.models import Base
+except ImportError:
+    from models import Base
+
 target_metadata = Base.metadata
 
 def get_url():
@@ -25,7 +36,7 @@ def get_url():
         print("         Local autogeneration will fail without a valid database connection.")
         return "postgresql://user:pass@localhost/sally"
     
-    from src.database import SQLALCHEMY_DATABASE_URL
+    from database import SQLALCHEMY_DATABASE_URL
     return SQLALCHEMY_DATABASE_URL
 
 def run_migrations_offline():

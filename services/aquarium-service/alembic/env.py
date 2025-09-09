@@ -1,6 +1,7 @@
 import os
 import json
 import boto3
+import sys
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool, text
 
@@ -14,10 +15,18 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-import sys
+# Add the project root to the Python path to allow imports from src/
 sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), '..')))
-from models import Base
+
+# add your model's MetaData object here
+# for 'autogenerate' support
+# This try/except block allows the script to work both locally (with a src/ dir)
+# and in the Lambda (where src/ is flattened).
+try:
+    from src.models import Base
+except ImportError:
+    from models import Base
+
 target_metadata = Base.metadata
 
 def get_database_url():
