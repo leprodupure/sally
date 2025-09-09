@@ -23,7 +23,10 @@ provider "aws" {
   region = var.aws_region
 }
 
-# --- Global Infra Remote State ---
+# --- Foundational Data Sources ---
+
+data "aws_region" "current" {}
+
 # This data source reads the outputs from the global-infra module,
 # allowing this service to access shared resources like the VPC and subnets.
 data "terraform_remote_state" "global_infra" {
