@@ -7,9 +7,6 @@ on:
         required: false
         type: string
         default: 'apply'
-      workdir:
-        required: true
-        type: string
       service-path:
         required: true
         type: string
@@ -106,60 +103,45 @@ jobs:
           fi
           echo "Lambda migration successful."
 
-      - name: Terraform Init for Apply
-        if: inputs.action == 'apply'
+      - name: Terraform Apply (Services)
+        if: inputs.action == 'apply' && inputs.environment != 'global'
+        working-directory: terraform
         run: |
+          echo "--- Initializing Terraform for Service Apply ---"
           terraform init \
             -backend-config="bucket=sally-terraform-state-bucket" \
             -backend-config="key=${{ inputs.stack }}/${{ inputs.service-path }}/terraform.tfstate" \
             -backend-config="region=eu-west-3"
-        working-directory: ./${{ inputs.workdir }}
 
-      - name: Terraform Plan
-        if: false
-        run: |
-          TF_VARS=""
-          if [ "${{ inputs.environment }}" != "global" ]; then
-            cp "../environments/common.tfvars" .
-            cp "../environments/${{ inputs.environment }}.tfvars" .
-            TF_VARS="-var-file=common.tfvars -var-file=${{ inputs.environment }}.tfvars"
-          fi
-          terraform plan -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
-        working-directory: ./${{ inputs.workdir }}/terraform
+          echo "--- Applying Terraform for Service ---"
+          cp ../environments/common.tfvars .
+          cp ../environments/${{ inputs.environment }}.tfvars .
+          terraform apply -auto-approve -no-color -var="stack=${{ inputs.stack }}" -var-file=common.tfvars -var-file=${{ inputs.environment }}.tfvars
 
-      - name: Terraform Apply
-        if: inputs.action == 'apply'
+      - name: Terraform Apply (Global Infra)
+        if: inputs.action == 'apply' && inputs.environment == 'global'
+        working-directory: ${{ inputs.service-path }}/terraform
         run: |
-          TF_VARS=""
-          if [ "${{ inputs.environment }}" != "global" ]; then
-            cp ../environments/common.tfvars .
-            cp ../environments/${{ inputs.environment }}.tfvars .
-            TF_VARS="-var-file=common.tfvars -var-file=${{ inputs.environment }}.tfvars"
-          fi
-          terraform apply -auto-approve -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
-        working-directory: ./terraform
-
-      - name: Terraform Init for Destroy
-        if: inputs.action == 'destroy'
-        run: |
+          echo "--- Initializing Terraform for Global Infra Apply ---"
           terraform init \
             -backend-config="bucket=sally-terraform-state-bucket" \
             -backend-config="key=${{ inputs.stack }}/${{ inputs.service-path }}/terraform.tfstate" \
             -backend-config="region=eu-west-3"
-        working-directory: ./${{ inputs.service-path }}/terraform
 
-      - name: Terraform Init Destroy
-        if: inputs.action == 'destroy'
-        run: |
-          terraform init \
-            -backend-config="bucket=sally-terraform-state-bucket" \
-            -backend-config="key=${{ inputs.stack }}/${{ inputs.service-path }}/terraform.tfstate" \
-            -backend-config="region=eu-west-3"
-        working-directory: ./${{ inputs.workdir }}
+          echo "--- Applying Terraform for Global Infra ---"
+          terraform apply -auto-approve -no-color -var="stack=${{ inputs.stack }}"
 
       - name: Terraform Destroy
         if: inputs.action == 'destroy'
+        working-directory: ${{ inputs.service-path }}/terraform
         run: |
+          echo "--- Initializing Terraform for Destroy ---"
+          terraform init \
+            -backend-config="bucket=sally-terraform-state-bucket" \
+            -backend-config="key=${{ inputs.stack }}/${{ inputs.service-path }}/terraform.tfstate" \
+            -backend-config="region=eu-west-3"
+
+          echo "--- Destroying Terraform ---"
           TF_VARS=""
           if [ "${{ inputs.environment }}" != "global" ]; then
             cp ../../../environments/common.tfvars .
@@ -167,4 +149,3 @@ jobs:
             TF_VARS="-var-file=common.tfvars -var-file=${{ inputs.environment }}.tfvars"
           fi
           terraform destroy -auto-approve -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
-        working-directory: ./${{ inputs.service-path }}/terraform
