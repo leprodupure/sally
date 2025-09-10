@@ -59,6 +59,19 @@ def read_aquarium(
     return db_aquarium
 
 
+@app.put("/aquariums/{aquarium_id}", response_model=models.Aquarium)
+def update_aquarium(
+    aquarium_id: int,
+    aquarium: models.AquariumUpdate,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id)
+):
+    db_aquarium = crud.update_aquarium(db, aquarium_id=aquarium_id, user_id=user_id, aquarium=aquarium)
+    if db_aquarium is None:
+        raise HTTPException(status_code=404, detail="Aquarium not found")
+    return db_aquarium
+
+
 @app.delete("/aquariums/{aquarium_id}", status_code=204)
 def delete_aquarium(
     aquarium_id: int,

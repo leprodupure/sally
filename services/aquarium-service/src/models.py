@@ -24,6 +24,12 @@ class AquariumCreate(BaseModel):
     volume_liters: float
 
 
+# Pydantic model for request body on update (all fields optional)
+class AquariumUpdate(BaseModel):
+    name: str | None = None
+    volume_liters: float | None = None
+
+
 # Pydantic model for response body
 class Aquarium(BaseModel):
     id: int

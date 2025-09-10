@@ -20,6 +20,21 @@ def create_aquarium(db: Session, aquarium: models.AquariumCreate, user_id: str):
     return db_aquarium
 
 
+def update_aquarium(db: Session, aquarium_id: int, user_id: str, aquarium: models.AquariumUpdate):
+    db_aquarium = get_aquarium(db, aquarium_id, user_id)
+    if not db_aquarium:
+        return None
+
+    update_data = aquarium.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_aquarium, key, value)
+
+    db.add(db_aquarium)
+    db.commit()
+    db.refresh(db_aquarium)
+    return db_aquarium
+
+
 def delete_aquarium(db: Session, aquarium_id: int, user_id: str):
     db_aquarium = get_aquarium(db, aquarium_id, user_id)
     if not db_aquarium:

@@ -26,6 +26,13 @@ resource "aws_apigatewayv2_route" "create_aquarium" {
   target    = "integrations/${aws_apigatewayv2_integration.main.id}"
 }
 
+# PUT /aquariums/{aquarium_id}
+resource "aws_apigatewayv2_route" "update_aquarium" {
+  api_id    = data.terraform_remote_state.core.outputs.api_gateway_id
+  route_key = "PUT /aquariums/{aquarium_id}"
+  target    = "integrations/${aws_apigatewayv2_integration.main.id}"
+}
+
 # This permission allows API Gateway to invoke the Lambda function.
 resource "aws_lambda_permission" "api_gw" {
   statement_id  = "AllowAPIGatewayInvoke"
