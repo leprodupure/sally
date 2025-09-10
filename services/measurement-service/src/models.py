@@ -16,6 +16,7 @@ class MeasurementDB(Base):
     aquarium_id = Column(Integer, index=True, nullable=False)
     parameter_type = Column(String, index=True)
     value = Column(Float)
+    unit = Column(String) # New field for the unit of measurement
     timestamp = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -26,6 +27,7 @@ class MeasurementCreate(BaseModel):
     aquarium_id: int
     parameter_type: str
     value: float
+    unit: str # New field for the unit
     timestamp: datetime
 
 
@@ -35,6 +37,7 @@ class Measurement(BaseModel):
     aquarium_id: int
     parameter_type: str
     value: float
+    unit: str # New field for the unit
     timestamp: datetime
 
     class Config:
