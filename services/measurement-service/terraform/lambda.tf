@@ -23,9 +23,9 @@ resource "aws_lambda_function" "main" {
 
   # Assumes the build script has created a zip file with a standard name
   # in the parent directory of this terraform module.
-  package_type  = "Zip"
-  filename      = "../${var.module_name}-lambda.zip"
-  source_code_hash = filebase64sha256("../${var.module_name}-lambda.zip")
+  package_type     = "Zip"
+  filename         = "../${var.module_name}-lambda.zip"
+  source_code_hash = fileexists("../${var.module_name}-lambda.zip") ? filebase64sha256("../${var.module_name}-lambda.zip") : null
 
   vpc_config {
     subnet_ids         = data.terraform_remote_state.global_infra.outputs.private_subnet_ids

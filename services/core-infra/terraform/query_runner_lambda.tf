@@ -65,12 +65,12 @@ resource "aws_lambda_function" "query_runner" {
   handler       = "query_runner.handler"
   runtime       = "python3.12"
   role          = aws_iam_role.query_runner_lambda_exec.arn
-  timeout       = 10
+  timeout       = 60
 
   # The code for this lambda is part of the core-infra service package
   package_type     = "Zip"
   filename         = "../core-infra-lambda.zip"
-  source_code_hash = filebase64sha256("../core-infra-lambda.zip")
+  source_code_hash = fileexists("../core-infra-lambda.zip") ? filebase64sha256("../core-infra-lambda.zip") : null
 
   vpc_config {
     subnet_ids         = data.terraform_remote_state.global_infra.outputs.private_subnet_ids
