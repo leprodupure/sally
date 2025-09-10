@@ -57,7 +57,6 @@ def run_migrations_offline():
     with context.begin_transaction():
         context.run_migrations()
 
-
 def run_migrations_online():
     """Run migrations in 'online' mode."""
     # Set the sqlalchemy.url in the config object from our dynamic function
@@ -71,9 +70,11 @@ def run_migrations_online():
     )
 
     with connectable.connect() as connection:
-        # Create the schema if it doesn't exist before configuring the context
+        # Create the schema if it doesn't exist and commit the change
         connection.execute(text("CREATE SCHEMA IF NOT EXISTS measurement"))
+        connection.commit()
 
+        # Now, configure the context for Alembic's transactional migrations
         context.configure(
             connection=connection, 
             target_metadata=target_metadata,

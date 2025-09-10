@@ -70,9 +70,11 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        # Create the schema if it doesn't exist before configuring the context
+        # Create the schema if it doesn't exist and commit the change
         connection.execute(text("CREATE SCHEMA IF NOT EXISTS aquarium"))
+        connection.commit()
 
+        # Now, configure the context for Alembic's transactional migrations
         context.configure(
             connection=connection, 
             target_metadata=target_metadata,
