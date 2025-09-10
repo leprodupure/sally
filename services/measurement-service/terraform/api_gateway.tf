@@ -26,6 +26,20 @@ resource "aws_apigatewayv2_route" "create_measurement" {
   target    = "integrations/${aws_apigatewayv2_integration.main.id}"
 }
 
+# PUT /measurements/{measurement_id}
+resource "aws_apigatewayv2_route" "update_measurement" {
+  api_id    = data.terraform_remote_state.core.outputs.api_gateway_id
+  route_key = "PUT /measurements/{measurement_id}"
+  target    = "integrations/${aws_apigatewayv2_integration.main.id}"
+}
+
+# DELETE /measurements/{measurement_id}
+resource "aws_apigatewayv2_route" "delete_measurement" {
+  api_id    = data.terraform_remote_state.core.outputs.api_gateway_id
+  route_key = "DELETE /measurements/{measurement_id}"
+  target    = "integrations/${aws_apigatewayv2_integration.main.id}"
+}
+
 # This permission allows API Gateway to invoke the Lambda function.
 resource "aws_lambda_permission" "api_gw" {
   statement_id  = "AllowAPIGatewayInvoke"

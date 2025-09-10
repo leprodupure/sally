@@ -31,6 +31,14 @@ class MeasurementCreate(BaseModel):
     timestamp: datetime
 
 
+# Pydantic model for request body on update (all fields optional)
+class MeasurementUpdate(BaseModel):
+    parameter_type: str | None = None
+    value: float | None = None
+    unit: str | None = None
+    timestamp: datetime | None = None
+
+
 # Pydantic model for response body
 class Measurement(BaseModel):
     id: int

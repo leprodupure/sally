@@ -40,5 +40,46 @@ def read_measurements(aquarium_id: int, db: Session = Depends(get_db), user_id: 
     ).all()
     return measurements
 
+@app.put("/measurements/{measurement_id}", response_model=models.Measurement)
+def update_measurement(
+    measurement_id: int,
+    measurement: models.MeasurementUpdate,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id)
+):
+    db_measurement = db.query(models.MeasurementDB).filter(
+        models.MeasurementDB.id == measurement_id,
+        models.MeasurementDB.user_id == user_id
+    ).first()
+
+    if not db_measurement:
+        raise HTTPException(status_code=404, detail="Measurement not found")
+
+    update_data = measurement.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_measurement, key, value)
+
+    db.add(db_measurement)
+    db.commit()
+    db.refresh(db_measurement)
+    return db_measurement
+
+@app.delete("/measurements/{measurement_id}", status_code=204)
+def delete_measurement(
+    measurement_id: int,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id)
+):
+    db_measurement = db.query(models.MeasurementDB).filter(
+        models.MeasurementDB.id == measurement_id,
+        models.MeasurementDB.user_id == user_id
+    ).first()
+
+    if not db_measurement:
+        raise HTTPException(status_code=404, detail="Measurement not found")
+
+    db.delete(db_measurement)
+    db.commit()
+    return {"ok": True}
 
 handler = Mangum(app)
