@@ -4,10 +4,6 @@ from mangum import Mangum
 
 import crud, models, database
 
-# Create all database tables (if they don't exist) on startup
-# In a real production scenario, you might use a migration tool like Alembic
-database.Base.metadata.create_all(bind=database.engine)
-
 app = FastAPI(title="Aquarium Service")
 
 
@@ -23,7 +19,8 @@ def get_db():
 # Dependency to get the current user's ID from the Cognito authorizer context
 def get_current_user_id(request: Request) -> str:
     # The user ID (sub) is passed by the API Gateway Cognito Authorizer
-    user_id = request.scope.get("aws.event", {}).get("requestContext", {}).get("authorizer", {}).get("claims", {}).get("sub")
+    # For HTTP API (v2) JWT authorizers, claims are nested under 'jwt'
+    user_id = request.scope.get("aws.event", {}).get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {}).get("sub")
     if not user_id:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
     return user_id
@@ -35,6 +32,7 @@ def create_aquarium(
     db: Session = Depends(get_db),
     user_id: str = Depends(get_current_user_id)
 ):
+    # Pass the Pydantic model directly to the CRUD layer
     return crud.create_aquarium(db=db, aquarium=aquarium, user_id=user_id)
 
 
@@ -56,6 +54,19 @@ def read_aquarium(
     user_id: str = Depends(get_current_user_id)
 ):
     db_aquarium = crud.get_aquarium(db, aquarium_id=aquarium_id, user_id=user_id)
+    if db_aquarium is None:
+        raise HTTPException(status_code=404, detail="Aquarium not found")
+    return db_aquarium
+
+
+@app.put("/aquariums/{aquarium_id}", response_model=models.Aquarium)
+def update_aquarium(
+    aquarium_id: int,
+    aquarium: models.AquariumUpdate,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id)
+):
+    db_aquarium = crud.update_aquarium(db, aquarium_id=aquarium_id, user_id=user_id, aquarium=aquarium)
     if db_aquarium is None:
         raise HTTPException(status_code=404, detail="Aquarium not found")
     return db_aquarium

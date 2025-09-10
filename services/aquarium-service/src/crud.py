@@ -12,11 +12,23 @@ def get_aquariums_by_user(db: Session, user_id: str, skip: int = 0, limit: int =
 
 
 def create_aquarium(db: Session, aquarium: models.AquariumCreate, user_id: str):
-    db_aquarium = models.AquariumDB(
-        name=aquarium.name,
-        volume_liters=aquarium.volume_liters,
-        user_id=user_id
-    )
+    # Convert the Pydantic model to a dictionary and unpack it into the SQLAlchemy model
+    db_aquarium = models.AquariumDB(**aquarium.model_dump(), user_id=user_id)
+    db.add(db_aquarium)
+    db.commit()
+    db.refresh(db_aquarium)
+    return db_aquarium
+
+
+def update_aquarium(db: Session, aquarium_id: int, user_id: str, aquarium: models.AquariumUpdate):
+    db_aquarium = get_aquarium(db, aquarium_id, user_id)
+    if not db_aquarium:
+        return None
+
+    update_data = aquarium.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_aquarium, key, value)
+
     db.add(db_aquarium)
     db.commit()
     db.refresh(db_aquarium)

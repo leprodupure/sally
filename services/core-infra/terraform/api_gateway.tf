@@ -1,16 +1,23 @@
-resource "aws_api_gateway_rest_api" "main" {
-  name        = "${var.project_name}-${var.stack}-${var.module_name}-api"
-  description = "Main API Gateway for the ${var.project_name} project"
+resource "aws_apigatewayv2_api" "main" {
+  name          = "${var.project_name}-${var.stack}-http-api"
+  protocol_type = "HTTP"
+  description   = "Main HTTP API for the ${var.project_name} project"
+}
 
-  endpoint_configuration {
-    types = ["REGIONAL"]
+resource "aws_apigatewayv2_authorizer" "cognito" {
+  api_id           = aws_apigatewayv2_api.main.id
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+  name             = "cognito-authorizer"
+
+  jwt_configuration {
+    audience = [aws_cognito_user_pool_client.main.id]
+    issuer   = "https://cognito-idp.${data.aws_region.current.name}.amazonaws.com/${aws_cognito_user_pool.main.id}"
   }
 }
 
-resource "aws_api_gateway_authorizer" "cognito" {
-  name                   = "CognitoAuthorizer"
-  rest_api_id            = aws_api_gateway_rest_api.main.id
-  type                   = "COGNITO_USER_POOLS"
-  identity_source        = "method.request.header.Authorization"
-  provider_arns          = [aws_cognito_user_pool.main.arn]
+resource "aws_apigatewayv2_stage" "main" {
+  api_id      = aws_apigatewayv2_api.main.id
+  name        = var.stack
+  auto_deploy = true
 }

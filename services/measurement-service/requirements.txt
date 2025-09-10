@@ -1,0 +1,7 @@
+fastapi
+pydantic
+sqlalchemy
+psycopg2-binary
+mangum
+#boto3
+#alembic

@@ -8,6 +8,7 @@ from database import Base
 # SQLAlchemy model for the 'aquariums' table
 class AquariumDB(Base):
     __tablename__ = "aquariums"
+    __table_args__ = {"schema": "aquarium"}
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, index=True, nullable=False)
@@ -21,6 +22,12 @@ class AquariumDB(Base):
 class AquariumCreate(BaseModel):
     name: str
     volume_liters: float
+
+
+# Pydantic model for request body on update (all fields optional)
+class AquariumUpdate(BaseModel):
+    name: str | None = None
+    volume_liters: float | None = None
 
 
 # Pydantic model for response body

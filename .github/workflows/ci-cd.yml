@@ -64,7 +64,8 @@ jobs:
               - 'services/core-infra/**'
             aquarium-service:
               - 'services/aquarium-service/**'
-            # Add other services here as they are created
+            measurement-service:
+              - 'services/measurement-service/**'
 
   # --- Initial Job: Deploy Global Infrastructure ---
   # This job deploys shared resources like the S3 package registry.
@@ -76,7 +77,6 @@ jobs:
       id-token: write # Required for OIDC authentication with AWS
     uses: ./.github/workflows/reusable-deploy-terraform.yml
     with:
-      workdir: global-infra/infra
       service-path: global-infra/infra # This is not a service, but the path to the module
       environment: global # This is a placeholder, as this module is env-agnostic
       stack: global
@@ -139,7 +139,6 @@ jobs:
         service: ${{ fromJson(needs.calculate-plan.outputs.matrix).batch[0] }}
     uses: ./.github/workflows/reusable-deploy-terraform.yml
     with:
-      workdir: .
       service-path: services/${{ matrix.service }}
       environment: ${{ github.event_name == 'pull_request' && 'temp' || 'staging' }}
       stack: ${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || (github.ref == 'refs/heads/main' && 'staging' || 'temp') }}
@@ -156,7 +155,6 @@ jobs:
         service: ${{ fromJson(needs.calculate-plan.outputs.matrix).batch[1] }}
     uses: ./.github/workflows/reusable-deploy-terraform.yml
     with:
-      workdir: .
       service-path: services/${{ matrix.service }}
       environment: ${{ github.event_name == 'pull_request' && 'temp' || 'staging' }}
       stack: ${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || (github.ref == 'refs/heads/main' && 'staging' || 'temp') }}
@@ -177,7 +175,6 @@ jobs:
     uses: ./.github/workflows/reusable-deploy-terraform.yml
     with:
       action: 'destroy'
-      workdir: .
       service-path: services/${{ matrix.service }}
       environment: 'temp'
       stack: pr${{ github.event.pull_request.number }}
@@ -196,7 +193,6 @@ jobs:
     uses: ./.github/workflows/reusable-deploy-terraform.yml
     with:
       action: 'destroy'
-      workdir: .
       service-path: services/${{ matrix.service }}
       environment: 'temp'
       stack: pr${{ github.event.pull_request.number }}
