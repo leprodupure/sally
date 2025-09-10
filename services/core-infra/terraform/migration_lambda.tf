@@ -79,7 +79,7 @@ resource "aws_lambda_function" "migration_runner" {
   # The code for this lambda is built and packaged with the core-infra service
   package_type     = "Zip"
   filename         = "../core-infra-lambda.zip"
-  source_code_hash = filebase64sha256("../core-infra-lambda.zip")
+  source_code_hash = fileexists("../core-infra-lambda.zip") ? filebase64sha256("../core-infra-lambda.zip") : null
 
   vpc_config {
     subnet_ids         = data.terraform_remote_state.global_infra.outputs.private_subnet_ids
