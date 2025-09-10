@@ -32,7 +32,8 @@ def create_aquarium(
     db: Session = Depends(get_db),
     user_id: str = Depends(get_current_user_id)
 ):
-    return crud.create_aquarium(db=db, aquarium=aquarium.model_dump(), user_id=user_id)
+    # Pass the Pydantic model directly to the CRUD layer
+    return crud.create_aquarium(db=db, aquarium=aquarium, user_id=user_id)
 
 
 @app.get("/aquariums", response_model=list[models.Aquarium])
