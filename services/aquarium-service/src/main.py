@@ -43,9 +43,7 @@ def read_aquariums(
     db: Session = Depends(get_db),
     user_id: str = Depends(get_current_user_id)
 ):
-    print("start GET /aquariums")
     aquariums = crud.get_aquariums_by_user(db, user_id=user_id, skip=skip, limit=limit)
-    print(f"GET /aquariums result: {aquariums}")
     return aquariums
 
 
@@ -73,7 +71,6 @@ def update_aquarium(
         raise HTTPException(status_code=404, detail="Aquarium not found")
     return db_aquarium
 
-
 @app.delete("/aquariums/{aquarium_id}", status_code=204)
 def delete_aquarium(
     aquarium_id: int,
@@ -87,4 +84,4 @@ def delete_aquarium(
 
 
 # Mangum adapter to make FastAPI work with AWS Lambda
-handler = Mangum(app)
+handler = Mangum(app, api_gateway_base_path='/pr24')
