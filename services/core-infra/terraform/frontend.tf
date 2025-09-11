@@ -62,6 +62,8 @@ resource "aws_cloudfront_distribution" "main" {
     # The domain name for the API Gateway v2 is the invoke URL without the protocol.
     domain_name = replace(aws_apigatewayv2_api.main.api_endpoint, "https://", "")
     origin_id   = "API-Gateway-${aws_apigatewayv2_api.main.id}"
+    # CRITICAL FIX: Add the stage name to the origin path for API Gateway HTTP APIs
+    origin_path = "/${var.stack}"
 
     custom_origin_config {
       http_port              = 80
