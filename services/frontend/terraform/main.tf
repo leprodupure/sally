@@ -35,57 +35,32 @@ locals {
   config_content = jsonencode({
     cognito_hosted_ui_url = data.terraform_remote_state.core.outputs.cognito_hosted_ui_url
   })
-
-  # Map file extensions to MIME types for S3 content_type
-  mime_types = {
-    "html" = "text/html"
-    "css"  = "text/css"
-    "js"   = "application/javascript"
-    "json" = "application/json"
-    "png"  = "image/png"
-    "jpg"  = "image/jpeg"
-    "jpeg" = "image/jpeg"
-    "gif"  = "image/gif"
-    "svg"  = "image/svg+xml"
-    "ico"  = "image/x-icon"
-    # Add more as needed
-  }
 }
 
-# --- Resource Provisioning ---
-
-# This resource unpacks the frontend assets from the zip file created by the build process.
-resource "null_resource" "unzip_frontend" {
+# This resource handles unzipping the frontend package and uploading files to S3.
+resource "null_resource" "frontend_deploy" {
   triggers = {
+    # Trigger a redeploy if the zip file content changes
     zip_hash = fileexists("../frontend-lambda.zip") ? filebase64sha256("../frontend-lambda.zip") : ""
+    # Trigger a redeploy if the config.json content changes
+    config_hash = md5(local.config_content)
   }
 
   provisioner "local-exec" {
-    command = "unzip -o ../frontend-lambda.zip -d ../dist"
+    # Commands are executed from the directory where terraform is run (services/frontend/terraform)
+    # So, ../ refers to services/frontend
+    # And ../dist refers to services/frontend/dist
+    command = <<EOT
+      rm -rf ../dist
+      mkdir -p ../dist
+      unzip -o ../frontend-lambda.zip -d ../dist
+
+      # Use aws s3 sync to upload all files, relying on S3's MIME type guessing
+      # Exclude config.json as it's uploaded separately with explicit content-type
+      aws s3 sync ../dist/ s3://${data.terraform_remote_state.core.outputs.frontend_bucket_name}/ --exclude "config.json" --delete
+
+      # Upload config.json separately to ensure its content type is always application/json
+      echo '${local.config_content}' | aws s3 cp - s3://${data.terraform_remote_state.core.outputs.frontend_bucket_name}/config.json --content-type application/json
+    EOT
   }
-}
-
-# This resource uploads all the files extracted by the null_resource to the S3 bucket.
-resource "aws_s3_object" "frontend_files" {
-  # Use try() to handle cases where ../dist might not exist during plan phase
-  for_each = try(fileset("../dist", "**"), toset([]))
-
-  depends_on = [null_resource.unzip_frontend]
-
-  bucket = data.terraform_remote_state.core.outputs.frontend_bucket_name
-  key    = each.value
-  source = "../dist/${each.value}"
-  etag   = filemd5("../dist/${each.value}")
-  
-  # Dynamically set content_type based on file extension
-  content_type = lookup(local.mime_types, split(".", each.value)[length(split(".", each.value)) - 1], "application/octet-stream")
-}
-
-# This resource creates and uploads the dynamic config.json file to the S3 bucket.
-resource "aws_s3_object" "config_file" {
-  bucket       = data.terraform_remote_state.core.outputs.frontend_bucket_name
-  key          = "config.json"
-  content      = local.config_content
-  content_type = "application/json"
-  etag         = md5(local.config_content)
 }
