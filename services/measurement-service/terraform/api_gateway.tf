@@ -14,30 +14,38 @@ resource "aws_apigatewayv2_integration" "main" {
 
 # GET /measurements
 resource "aws_apigatewayv2_route" "get_measurements" {
-  api_id    = data.terraform_remote_state.core.outputs.api_gateway_id
-  route_key = "GET /measurements"
-  target    = "integrations/${aws_apigatewayv2_integration.main.id}"
+  api_id             = data.terraform_remote_state.core.outputs.api_gateway_id
+  route_key          = "GET /measurements"
+  target             = "integrations/${aws_apigatewayv2_integration.main.id}"
+  authorization_type = "JWT"
+  authorizer_id      = data.terraform_remote_state.core.outputs.api_gateway_authorizer_id
 }
 
 # POST /measurements
 resource "aws_apigatewayv2_route" "create_measurement" {
-  api_id    = data.terraform_remote_state.core.outputs.api_gateway_id
-  route_key = "POST /measurements"
-  target    = "integrations/${aws_apigatewayv2_integration.main.id}"
+  api_id             = data.terraform_remote_state.core.outputs.api_gateway_id
+  route_key          = "POST /measurements"
+  target             = "integrations/${aws_apigatewayv2_integration.main.id}"
+  authorization_type = "JWT"
+  authorizer_id      = data.terraform_remote_state.core.outputs.api_gateway_authorizer_id
 }
 
 # PUT /measurements/{measurement_id}
 resource "aws_apigatewayv2_route" "update_measurement" {
-  api_id    = data.terraform_remote_state.core.outputs.api_gateway_id
-  route_key = "PUT /measurements/{measurement_id}"
-  target    = "integrations/${aws_apigatewayv2_integration.main.id}"
+  api_id             = data.terraform_remote_state.core.outputs.api_gateway_id
+  route_key          = "PUT /measurements/{measurement_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.main.id}"
+  authorization_type = "JWT"
+  authorizer_id      = data.terraform_remote_state.core.outputs.api_gateway_authorizer_id
 }
 
 # DELETE /measurements/{measurement_id}
 resource "aws_apigatewayv2_route" "delete_measurement" {
-  api_id    = data.terraform_remote_state.core.outputs.api_gateway_id
-  route_key = "DELETE /measurements/{measurement_id}"
-  target    = "integrations/${aws_apigatewayv2_integration.main.id}"
+  api_id             = data.terraform_remote_state.core.outputs.api_gateway_id
+  route_key          = "DELETE /measurements/{measurement_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.main.id}"
+  authorization_type = "JWT"
+  authorizer_id      = data.terraform_remote_state.core.outputs.api_gateway_authorizer_id
 }
 
 # This permission allows API Gateway to invoke the Lambda function.
