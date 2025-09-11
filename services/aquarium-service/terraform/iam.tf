@@ -20,7 +20,7 @@ resource "aws_iam_role_policy_attachment" "lambda_vpc_access" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
-# A separate policy for custom permissions, like accessing Secrets Manager.
+# A separate policy for custom permissions, like accessing Secrets Manager and CloudWatch Logs.
 resource "aws_iam_role_policy" "lambda_custom_policy" {
   name = "${var.project_name}-${var.stack}-${var.module_name}-lambda-policy"
   role = aws_iam_role.lambda_exec.id
@@ -32,6 +32,15 @@ resource "aws_iam_role_policy" "lambda_custom_policy" {
         Action   = "secretsmanager:GetSecretValue"
         Effect   = "Allow"
         Resource = data.terraform_remote_state.core.outputs.db_credentials_secret_arn
+      },
+      {
+        Action   = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        Effect   = "Allow",
+        Resource = "arn:aws:logs:${var.aws_region}:${data.terraform_remote_state.core.outputs.aws_account_id}:log-group:/aws/lambda/${var.project_name}-${var.stack}-${var.module_name}:*"
       }
     ]
   })
