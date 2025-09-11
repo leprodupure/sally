@@ -28,6 +28,12 @@ output "frontend_bucket_name" {
   value       = aws_s3_bucket.frontend.id
 }
 
+output "cognito_hosted_ui_url" {
+  description = "The URL for the Cognito Hosted UI login page."
+  # We are using the implicit grant flow for this simple SPA, which returns the token directly in the URL fragment.
+  value       = "https://${aws_cognito_user_pool_domain.main.domain}.auth.${data.aws_region.current.name}.amazoncognito.com/login?response_type=token&client_id=${aws_cognito_user_pool_client.main.id}&redirect_uri=https://${aws_cloudfront_distribution.main.domain_name}"
+}
+
 output "db_credentials_secret_arn" {
   description = "The ARN of the secret containing the database credentials."
   value       = aws_secretsmanager_secret.db_credentials.arn
