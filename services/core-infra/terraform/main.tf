@@ -26,7 +26,6 @@ provider "aws" {
 # --- Foundational Data Sources ---
 
 data "aws_region" "current" {}
-data "aws_caller_identity" "current" {}
 
 # This data source reads the outputs from the global-infra module,
 # allowing this service to access shared resources like the VPC and subnets.
