@@ -1,5 +1,3 @@
-data "aws_region" "current" {}
-
 resource "aws_apigatewayv2_api" "main" {
   name          = "${var.project_name}-${var.stack}-http-api"
   protocol_type = "HTTP"
