@@ -35,6 +35,21 @@ locals {
   config_content = jsonencode({
     cognito_hosted_ui_url = data.terraform_remote_state.core.outputs.cognito_hosted_ui_url
   })
+
+  # Map file extensions to MIME types for S3 content_type
+  mime_types = {
+    "html" = "text/html"
+    "css"  = "text/css"
+    "js"   = "application/javascript"
+    "json" = "application/json"
+    "png"  = "image/png"
+    "jpg"  = "image/jpeg"
+    "jpeg" = "image/jpeg"
+    "gif"  = "image/gif"
+    "svg"  = "image/svg+xml"
+    "ico"  = "image/x-icon"
+    # Add more as needed
+  }
 }
 
 # --- Resource Provisioning ---
@@ -52,7 +67,8 @@ resource "null_resource" "unzip_frontend" {
 
 # This resource uploads all the files extracted by the null_resource to the S3 bucket.
 resource "aws_s3_object" "frontend_files" {
-  for_each = fileexists("../dist") ? fileset("../dist", "**") : toset([])
+  # Use try() to handle cases where ../dist might not exist during plan phase
+  for_each = try(fileset("../dist", "**"), toset([]))
 
   depends_on = [null_resource.unzip_frontend]
 
@@ -60,7 +76,9 @@ resource "aws_s3_object" "frontend_files" {
   key    = each.value
   source = "../dist/${each.value}"
   etag   = filemd5("../dist/${each.value}")
-  content_type = "text/html"
+  
+  # Dynamically set content_type based on file extension
+  content_type = lookup(local.mime_types, split(".", each.value)[length(split(".", each.value)) - 1], "application/octet-stream")
 }
 
 # This resource creates and uploads the dynamic config.json file to the S3 bucket.
