@@ -1,11 +1,15 @@
 from fastapi import FastAPI, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from mangum import Mangum
+import os
 
 import models
 from database import SessionLocal, engine
 
-app = FastAPI()
+# Determine the root path from the STAGE environment variable set in the Lambda function
+ROOT_PATH = f"/{os.environ.get('STAGE', '')}" if os.environ.get('STAGE') else ""
+
+app = FastAPI(root_path=ROOT_PATH)
 
 # Dependency to get the database session
 def get_db():
@@ -18,8 +22,7 @@ def get_db():
 # Dependency to get the current user's ID from the Cognito authorizer context
 def get_current_user_id(request: Request) -> str:
     # The user ID (sub) is passed by the API Gateway Cognito Authorizer
-    # For HTTP API (v2) JWT authorizers, claims are nested under 'jwt'
-    user_id = request.scope.get("aws.event", {}).get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {}).get("sub")
+    user_id = request.scope.get("aws.event", {}).get("requestContext", {}).get("authorizer", {}).get("claims", {}).get("sub")
     if not user_id:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
     return user_id
