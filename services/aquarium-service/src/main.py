@@ -1,30 +1,14 @@
 from fastapi import FastAPI, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from mangum import Mangum
-import logging
 import os
 
 import crud, models, database
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Determine the root path from the STAGE environment variable set in the Lambda function
 ROOT_PATH = f"/{os.environ.get('STAGE', '')}" if os.environ.get('STAGE') else ""
 
 app = FastAPI(title="Aquarium Service", root_path=ROOT_PATH)
-
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    logger.info(f"Incoming request: {request.method} {request.url.path}")
-    try:
-        response = await call_next(request)
-        logger.info(f"Request finished with status: {response.status_code}")
-        return response
-    except Exception as e:
-        logger.error(f"Request failed with exception: {e}", exc_info=True)
-        raise
 
 # Dependency to get the database session
 def get_db():
@@ -36,7 +20,7 @@ def get_db():
 
 # Dependency to get the current user's ID from the Cognito authorizer context
 def get_current_user_id(request: Request) -> str:
-    # For API Gateway v1.0 payload format, claims are directly under authorizer
+    # The user ID (sub) is passed by the API Gateway Cognito Authorizer
     user_id = request.scope.get("aws.event", {}).get("requestContext", {}).get("authorizer", {}).get("claims", {}).get("sub")
     if not user_id:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
