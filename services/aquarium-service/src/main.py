@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 from mangum import Mangum
 import logging
 import os
-import json
 
 import crud, models, database
 
@@ -37,19 +36,8 @@ def get_db():
 
 # Dependency to get the current user's ID from the Cognito authorizer context
 def get_current_user_id(request: Request) -> str:
-    # --- DEBUGGING: Print the entire event scope ---
-    print("--- AWS LAMBDA EVENT SCOPE ---")
-    # We need a custom serializer to handle non-serializable types like bytes
-    def safe_default(o):
-        try:
-            return str(o)
-        except TypeError:
-            return f"<non-serializable: {type(o).__name__}>"
-    print(json.dumps(request.scope.get("aws.event", {}), indent=2, default=safe_default))
-    print("-----------------------------")
-    # --- END DEBUGGING ---
-
-    user_id = request.scope.get("aws.event", {}).get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {}).get("sub")
+    # For API Gateway v1.0 payload format, claims are directly under authorizer
+    user_id = request.scope.get("aws.event", {}).get("requestContext", {}).get("authorizer", {}).get("claims", {}).get("sub")
     if not user_id:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
     return user_id
