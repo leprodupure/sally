@@ -1,3 +1,5 @@
+import json
+
 from fastapi import FastAPI, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from mangum import Mangum
@@ -35,6 +37,7 @@ def get_db():
 def get_current_user_id(request: Request) -> str:
     # The user ID (sub) is passed by the API Gateway Cognito Authorizer
     # For HTTP API (v2) JWT authorizers, claims are nested under 'jwt'
+    print(json.dumps(request, indent=2))
     user_id = request.scope.get("aws.event", {}).get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {}).get("sub")
     if not user_id:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
