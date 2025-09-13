@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from mangum import Mangum
 import logging
+import os
 
 import models
 from database import SessionLocal, engine
@@ -10,7 +11,10 @@ from database import SessionLocal, engine
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+# Determine the root path from the STAGE environment variable set in the Lambda function
+ROOT_PATH = f"/{os.environ.get('STAGE', '')}" if os.environ.get('STAGE') else ""
+
+app = FastAPI(root_path=ROOT_PATH)
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):

@@ -1,9 +1,8 @@
-import json
-
 from fastapi import FastAPI, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from mangum import Mangum
 import logging
+import os
 
 import crud, models, database
 
@@ -11,7 +10,10 @@ import crud, models, database
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Aquarium Service")
+# Determine the root path from the STAGE environment variable set in the Lambda function
+ROOT_PATH = f"/{os.environ.get('STAGE', '')}" if os.environ.get('STAGE') else ""
+
+app = FastAPI(title="Aquarium Service", root_path=ROOT_PATH)
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -37,7 +39,6 @@ def get_db():
 def get_current_user_id(request: Request) -> str:
     # The user ID (sub) is passed by the API Gateway Cognito Authorizer
     # For HTTP API (v2) JWT authorizers, claims are nested under 'jwt'
-    print(json.dumps(request.scope, indent=2))
     user_id = request.scope.get("aws.event", {}).get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {}).get("sub")
     if not user_id:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
@@ -61,9 +62,7 @@ def read_aquariums(
     db: Session = Depends(get_db),
     user_id: str = Depends(get_current_user_id)
 ):
-    aquariums = crud.get_aquariums_by_user(db, user_id=user_id, skip=skip, limit=limit)
-    return aquariums
-
+    return crud.get_aquariums_by_user(db, user_id=user_id, skip=skip, limit=limit)
 
 @app.get("/aquariums/{aquarium_id}", response_model=models.Aquarium)
 def read_aquarium(
@@ -102,4 +101,4 @@ def delete_aquarium(
 
 
 # Mangum adapter to make FastAPI work with AWS Lambda
-handler = Mangum(app, api_gateway_base_path='/pr24')
+handler = Mangum(app)
