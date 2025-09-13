@@ -1,11 +1,26 @@
 from fastapi import FastAPI, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from mangum import Mangum
+import logging
 
 import crud, models, database
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="Aquarium Service")
 
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"Incoming request: {request.method} {request.url.path}")
+    try:
+        response = await call_next(request)
+        logger.info(f"Request finished with status: {response.status_code}")
+        return response
+    except Exception as e:
+        logger.error(f"Request failed with exception: {e}", exc_info=True)
+        raise
 
 # Dependency to get the database session
 def get_db():
