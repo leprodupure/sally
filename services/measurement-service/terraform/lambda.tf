@@ -28,7 +28,7 @@ resource "aws_lambda_function" "main" {
   source_code_hash = fileexists("../${var.module_name}-lambda.zip") ? filebase64sha256("../${var.module_name}-lambda.zip") : null
 
   vpc_config {
-    subnet_ids         = data.terraform_remote_state.global_infra.outputs.private_subnet_ids
+    subnet_ids         = data.terraform_remote_state.global_infra.outputs.public_subnet_ids
     security_group_ids = [aws_security_group.lambda.id]
   }
 

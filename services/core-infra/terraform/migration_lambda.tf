@@ -82,7 +82,7 @@ resource "aws_lambda_function" "migration_runner" {
   source_code_hash = fileexists("../core-infra-lambda.zip") ? filebase64sha256("../core-infra-lambda.zip") : null
 
   vpc_config {
-    subnet_ids         = data.terraform_remote_state.global_infra.outputs.private_subnet_ids
+    subnet_ids         = data.terraform_remote_state.global_infra.outputs.public_subnet_ids
     security_group_ids = [aws_security_group.migration_runner_lambda.id]
   }
 
