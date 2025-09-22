@@ -22,21 +22,3 @@ resource "aws_iam_role_policy_attachment" "lambda_vpc_access" {
   role       = aws_iam_role.lambda_exec.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
-
-# This policy grants the Lambda function permission to get the database
-# credentials from AWS Secrets Manager.
-resource "aws_iam_role_policy" "lambda_custom_policy" {
-  name = "${var.project_name}-${var.stack}-${var.module_name}-lambda-policy"
-  role = aws_iam_role.lambda_exec.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action   = "secretsmanager:GetSecretValue"
-        Effect   = "Allow"
-        Resource = data.terraform_remote_state.global_infra.outputs.db_credentials_secret_arn
-      }
-    ]
-  })
-}

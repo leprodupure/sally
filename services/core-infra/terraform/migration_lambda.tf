@@ -1,6 +1,18 @@
 # This Lambda function is a generic utility to run database migrations.
 # It is invoked by the CI/CD pipeline.
 
+# Read the latest version of the database credentials secret
+data "aws_secretsmanager_secret_version" "db_credentials" {
+  secret_id = data.terraform_remote_state.global_infra.outputs.db_credentials_secret_arn
+}
+
+# Decode the JSON string from the secret
+locals {
+  db_credentials = jsondecode(data.aws_secretsmanager_secret_version.db_credentials.secret_string)
+  # Construct the database URL from the secret's values
+  database_url = "postgresql+psycopg2://${local.db_credentials.username}:${local.db_credentials.password}@${local.db_credentials.endpoint}/${local.db_credentials.db_name}"
+}
+
 resource "aws_iam_role" "migration_runner_lambda_exec" {
   name = "${var.project_name}-${var.stack}-migration-runner-lambda-role"
 
@@ -29,16 +41,11 @@ resource "aws_iam_role_policy" "migration_runner_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Action   = "secretsmanager:GetSecretValue"
-        Effect   = "Allow"
-        Resource = data.terraform_remote_state.global_infra.outputs.db_credentials_secret_arn
-      },
-      {
         Action   = ["s3:GetObject", "s3:ListBucket"]
         Effect   = "Allow"
         Resource = [
-          "arn:aws:s3:::${var.s3_package_registry_bucket_name}/*", # Grant access to the objects
-          "arn:aws:s3:::${var.s3_package_registry_bucket_name}"  # Grant access to the bucket itself (for ListBucket)
+          "arn:aws:s3:::${var.s3_package_registry_bucket_name}/*",
+          "arn:aws:s3:::${var.s3_package_registry_bucket_name}"
         ]
       }
     ]
@@ -50,7 +57,6 @@ resource "aws_security_group" "migration_runner_lambda" {
   description = "Security group for the Migration Runner Lambda function"
   vpc_id      = data.terraform_remote_state.global_infra.outputs.vpc_id
 
-  # Allow all outbound traffic
   egress {
     from_port   = 0
     to_port     = 0
@@ -74,9 +80,8 @@ resource "aws_lambda_function" "migration_runner" {
   handler       = "migration_runner.handler"
   runtime       = "python3.12"
   role          = aws_iam_role.migration_runner_lambda_exec.arn
-  timeout       = 60 # Migrations can take time
+  timeout       = 60
 
-  # The code for this lambda is built and packaged with the core-infra service
   package_type     = "Zip"
   filename         = "../core-infra-lambda.zip"
   source_code_hash = fileexists("../core-infra-lambda.zip") ? filebase64sha256("../core-infra-lambda.zip") : null
@@ -88,9 +93,8 @@ resource "aws_lambda_function" "migration_runner" {
 
   environment {
     variables = {
-      # Pass the secret ARN to the migration runner so it can connect to the DB
-      DB_SECRET_ARN = data.terraform_remote_state.global_infra.outputs.db_credentials_secret_arn
-      S3_BUCKET     = var.s3_package_registry_bucket_name
+      DATABASE_URL = local.database_url
+      S3_BUCKET    = var.s3_package_registry_bucket_name
     }
   }
 }

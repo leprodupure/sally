@@ -81,9 +81,39 @@ resource "aws_route_table_association" "private" {
   route_table_id = aws_route_table.private.id
 }
 
+# --- VPC Endpoints ---
+resource "aws_security_group" "vpc_endpoints" {
+  name        = "${var.project_name}-vpc-endpoints-sg"
+  description = "Security group for VPC endpoints"
+  vpc_id      = aws_vpc.main.id
+}
+
+resource "aws_security_group_rule" "allow_vpc_to_vpc_endpoints" {
+  type              = "ingress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = [aws_vpc.main.cidr_block]
+  security_group_id = aws_security_group.vpc_endpoints.id
+  description       = "Allow resources in the VPC to use VPC endpoints"
+}
+
 # This allows resources in the private subnets (like our Lambdas) to access S3
 resource "aws_vpc_endpoint" "s3" {
-  vpc_id          = aws_vpc.main.id
-  service_name    = "com.amazonaws.${var.aws_region}.s3"
-  route_table_ids = [aws_route_table.private.id] # Gateway endpoint associates with route tables
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+}
+
+# CRITICAL FIX: This allows resources in the private subnets to send logs to CloudWatch
+resource "aws_vpc_endpoint" "logs" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.aws_region}.logs"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
 }

@@ -1,5 +1,17 @@
 # This Lambda function provides a secure way to run ad-hoc SQL queries against the database.
 
+# Read the latest version of the database credentials secret
+data "aws_secretsmanager_secret_version" "db_credentials_qr" { # Use a unique name to avoid conflict
+  secret_id = data.terraform_remote_state.global_infra.outputs.db_credentials_secret_arn
+}
+
+# Decode the JSON string from the secret
+locals {
+  db_credentials_qr = jsondecode(data.aws_secretsmanager_secret_version.db_credentials_qr.secret_string)
+  # Construct the database URL from the secret's values
+  database_url_qr = "postgresql+psycopg2://${local.db_credentials_qr.username}:${local.db_credentials_qr.password}@${local.db_credentials_qr.endpoint}/${local.db_credentials_qr.db_name}"
+}
+
 resource "aws_iam_role" "query_runner_lambda_exec" {
   name = "${var.project_name}-${var.stack}-query-runner-lambda-role"
 
@@ -20,20 +32,11 @@ resource "aws_iam_role_policy_attachment" "query_runner_vpc_access" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
+# IAM policy is now empty as the Lambda no longer needs to call Secrets Manager
 resource "aws_iam_role_policy" "query_runner_policy" {
   name = "${var.project_name}-${var.stack}-query-runner-lambda-policy"
   role = aws_iam_role.query_runner_lambda_exec.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action   = "secretsmanager:GetSecretValue"
-        Effect   = "Allow"
-        Resource = data.terraform_remote_state.global_infra.outputs.db_credentials_secret_arn
-      }
-    ]
-  })
+  policy = jsonencode({ Version = "2012-10-17", Statement = [] })
 }
 
 resource "aws_security_group" "query_runner_lambda" {
@@ -41,7 +44,6 @@ resource "aws_security_group" "query_runner_lambda" {
   description = "Security group for the SQL Query Runner Lambda function"
   vpc_id      = data.terraform_remote_state.global_infra.outputs.vpc_id
 
-  # Allow all outbound traffic
   egress {
     from_port   = 0
     to_port     = 0
@@ -67,7 +69,6 @@ resource "aws_lambda_function" "query_runner" {
   role          = aws_iam_role.query_runner_lambda_exec.arn
   timeout       = 60
 
-  # The code for this lambda is part of the core-infra service package
   package_type     = "Zip"
   filename         = "../core-infra-lambda.zip"
   source_code_hash = fileexists("../core-infra-lambda.zip") ? filebase64sha256("../core-infra-lambda.zip") : null
@@ -79,7 +80,7 @@ resource "aws_lambda_function" "query_runner" {
 
   environment {
     variables = {
-      DB_SECRET_ARN = data.terraform_remote_state.global_infra.outputs.db_credentials_secret_arn
+      DATABASE_URL = local.database_url_qr
     }
   }
 }
