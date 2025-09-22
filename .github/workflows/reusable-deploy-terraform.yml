@@ -129,7 +129,7 @@ jobs:
             -backend-config="region=eu-west-3"
 
           echo "--- Applying Terraform for Global Infra ---"
-          terraform apply -auto-approve -no-color -var="stack=${{ inputs.stack }}"
+          terraform apply -auto-approve -no-color -var="stack=${{ inputs.stack }}" -var-file=global-infra.tfvars
 
       - name: Terraform Destroy
         if: inputs.action == 'destroy'
@@ -147,5 +147,7 @@ jobs:
             cp ../../../environments/common.tfvars .
             cp ../../../environments/${{ inputs.environment }}.tfvars .
             TF_VARS="-var-file=common.tfvars -var-file=${{ inputs.environment }}.tfvars"
+          else
+            TF_VARS="-var-file=global-infra.tfvars"
           fi
           terraform destroy -auto-approve -no-color -var="stack=${{ inputs.stack }}" ${TF_VARS}
