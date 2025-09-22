@@ -31,7 +31,7 @@ resource "aws_iam_role_policy" "lambda_custom_policy" {
       {
         Action   = "secretsmanager:GetSecretValue"
         Effect   = "Allow"
-        Resource = data.terraform_remote_state.core.outputs.db_credentials_secret_arn
+        Resource = data.terraform_remote_state.global_infra.outputs.db_credentials_secret_arn
       }
     ]
   })

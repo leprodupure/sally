@@ -19,11 +19,6 @@ variable "module_name" {
   default     = "core"
 }
 
-variable "db_username" {
-  description = "The master username for the RDS database."
-  type        = string
-}
-
 variable "s3_package_registry_bucket_name" {
   description = "The name of the S3 bucket used as a package registry."
   type        = string

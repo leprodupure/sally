@@ -9,7 +9,7 @@ resource "random_password" "db_password" {
 }
 
 resource "aws_secretsmanager_secret" "db_credentials" {
-  name = "${var.project_name}/${var.stack}/${var.module_name}/db_credentials"
+  name = "${var.project_name}/global/db_credentials"
 }
 
 resource "aws_secretsmanager_secret_version" "db_credentials" {
@@ -24,28 +24,18 @@ resource "aws_secretsmanager_secret_version" "db_credentials" {
 
 # --- Database Resources ---
 resource "aws_db_subnet_group" "main" {
-  name       = "${var.project_name}-${var.stack}-${var.module_name}-sng"
-  subnet_ids = data.terraform_remote_state.global_infra.outputs.private_subnet_ids
+  name       = "${var.project_name}-global-sng"
+  subnet_ids = aws_subnet.private[*].id
 
   tags = {
-    Name = "${var.project_name}-${var.stack}-${var.module_name}-sng"
+    Name = "${var.project_name}-global-sng"
   }
 }
 
 resource "aws_security_group" "db" {
-  name        = "${var.project_name}-${var.stack}-${var.module_name}-db-sg"
+  name        = "${var.project_name}-global-db-sg"
   description = "Allow PostgreSQL traffic from within the VPC"
-  vpc_id      = data.terraform_remote_state.global_infra.outputs.vpc_id
-}
-
-resource "aws_security_group_rule" "db_ingress" {
-  type              = "ingress"
-  from_port         = 5432
-  to_port           = 5432
-  protocol          = "tcp"
-  cidr_blocks       = data.terraform_remote_state.global_infra.outputs.private_subnet_cidr_blocks
-  security_group_id = aws_security_group.db.id
-  description       = "Allow PostgreSQL traffic from within the VPC"
+  vpc_id      = aws_vpc.main.id
 }
 
 resource "aws_security_group_rule" "db_egress" {
@@ -59,7 +49,7 @@ resource "aws_security_group_rule" "db_egress" {
 }
 
 resource "aws_db_instance" "main" {
-  identifier             = "${var.project_name}-${var.stack}-${var.module_name}-db"
+  identifier             = "${var.project_name}-global-db"
   engine                 = "postgres"
   engine_version         = "15"
   instance_class         = "db.t3.micro" # Free Tier eligible

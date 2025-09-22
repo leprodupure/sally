@@ -47,13 +47,3 @@ output "aws_region" {
   description = "The AWS region the stack is deployed in."
   value       = data.aws_region.current.name
 }
-
-output "db_credentials_secret_arn" {
-  description = "The ARN of the secret containing the database credentials."
-  value       = aws_secretsmanager_secret.db_credentials.arn
-}
-
-output "db_security_group_id" {
-  description = "The ID of the security group for the database."
-  value       = aws_security_group.db.id
-}

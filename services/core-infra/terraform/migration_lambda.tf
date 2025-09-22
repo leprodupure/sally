@@ -31,7 +31,7 @@ resource "aws_iam_role_policy" "migration_runner_policy" {
       {
         Action   = "secretsmanager:GetSecretValue"
         Effect   = "Allow"
-        Resource = aws_secretsmanager_secret.db_credentials.arn
+        Resource = data.terraform_remote_state.global_infra.outputs.db_credentials_secret_arn
       },
       {
         Action   = ["s3:GetObject", "s3:ListBucket"]
@@ -65,7 +65,7 @@ resource "aws_security_group_rule" "allow_db_access_from_migration_runner" {
   to_port                  = 5432
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.migration_runner_lambda.id
-  security_group_id        = aws_security_group.db.id
+  security_group_id        = data.terraform_remote_state.global_infra.outputs.db_security_group_id
   description              = "Allow migration runner to connect to the database"
 }
 
@@ -82,14 +82,14 @@ resource "aws_lambda_function" "migration_runner" {
   source_code_hash = fileexists("../core-infra-lambda.zip") ? filebase64sha256("../core-infra-lambda.zip") : null
 
   vpc_config {
-    subnet_ids         = data.terraform_remote_state.global_infra.outputs.public_subnet_ids
+    subnet_ids         = data.terraform_remote_state.global_infra.outputs.private_subnet_ids
     security_group_ids = [aws_security_group.migration_runner_lambda.id]
   }
 
   environment {
     variables = {
       # Pass the secret ARN to the migration runner so it can connect to the DB
-      DB_SECRET_ARN = aws_secretsmanager_secret.db_credentials.arn
+      DB_SECRET_ARN = data.terraform_remote_state.global_infra.outputs.db_credentials_secret_arn
       S3_BUCKET     = var.s3_package_registry_bucket_name
     }
   }
