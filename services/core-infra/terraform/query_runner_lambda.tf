@@ -1,13 +1,13 @@
 # This Lambda function provides a secure way to run ad-hoc SQL queries against the database.
 
-# Read the latest version of the database credentials secret
-data "aws_secretsmanager_secret_version" "db_credentials_qr" { # Use a unique name to avoid conflict
-  secret_id = data.terraform_remote_state.global_infra.outputs.db_credentials_secret_arn
+# Read the latest version of the database credentials from SSM Parameter Store
+data "aws_ssm_parameter" "db_credentials_qr" { # Use a unique name to avoid conflict
+  name = data.terraform_remote_state.global_infra.outputs.db_credentials_parameter_name
 }
 
-# Decode the JSON string from the secret
+# Decode the JSON string from the parameter
 locals {
-  db_credentials_qr = jsondecode(data.aws_secretsmanager_secret_version.db_credentials_qr.secret_string)
+  db_credentials_qr = jsondecode(data.aws_ssm_parameter.db_credentials_qr.value)
   # Construct the database URL from the secret's values
   database_url_qr = "postgresql+psycopg2://${local.db_credentials_qr.username}:${local.db_credentials_qr.password}@${local.db_credentials_qr.endpoint}/${local.db_credentials_qr.db_name}"
 }
@@ -30,13 +30,6 @@ resource "aws_iam_role" "query_runner_lambda_exec" {
 resource "aws_iam_role_policy_attachment" "query_runner_vpc_access" {
   role       = aws_iam_role.query_runner_lambda_exec.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
-}
-
-# IAM policy is now empty as the Lambda no longer needs to call Secrets Manager
-resource "aws_iam_role_policy" "query_runner_policy" {
-  name = "${var.project_name}-${var.stack}-query-runner-lambda-policy"
-  role = aws_iam_role.query_runner_lambda_exec.id
-  policy = jsonencode({ Version = "2012-10-17", Statement = [] })
 }
 
 resource "aws_security_group" "query_runner_lambda" {

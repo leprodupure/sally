@@ -18,9 +18,9 @@ output "private_subnet_cidr_blocks" {
   value       = aws_subnet.private[*].cidr_block
 }
 
-output "db_credentials_secret_arn" {
-  description = "The ARN of the secret containing the database credentials."
-  value       = aws_secretsmanager_secret.db_credentials.arn
+output "db_credentials_parameter_name" {
+  description = "The name of the SSM Parameter Store parameter containing the database credentials."
+  value       = aws_ssm_parameter.db_credentials.name
 }
 
 output "db_security_group_id" {

@@ -1,14 +1,14 @@
 # This Lambda function is a generic utility to run database migrations.
 # It is invoked by the CI/CD pipeline.
 
-# Read the latest version of the database credentials secret
-data "aws_secretsmanager_secret_version" "db_credentials" {
-  secret_id = data.terraform_remote_state.global_infra.outputs.db_credentials_secret_arn
+# Read the latest version of the database credentials from SSM Parameter Store
+data "aws_ssm_parameter" "db_credentials" {
+  name = data.terraform_remote_state.global_infra.outputs.db_credentials_parameter_name
 }
 
-# Decode the JSON string from the secret
+# Decode the JSON string from the parameter
 locals {
-  db_credentials = jsondecode(data.aws_secretsmanager_secret_version.db_credentials.secret_string)
+  db_credentials = jsondecode(data.aws_ssm_parameter.db_credentials.value)
   # Construct the database URL from the secret's values
   database_url = "postgresql+psycopg2://${local.db_credentials.username}:${local.db_credentials.password}@${local.db_credentials.endpoint}/${local.db_credentials.db_name}"
 }

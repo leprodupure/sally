@@ -8,18 +8,16 @@ resource "random_password" "db_password" {
   override_special = "_%"
 }
 
-resource "aws_secretsmanager_secret" "db_credentials" {
-  name = "${var.project_name}/global/db_credentials"
-}
-
-resource "aws_secretsmanager_secret_version" "db_credentials" {
-  secret_id = aws_secretsmanager_secret.db_credentials.id
-  secret_string = jsonencode({
+resource "aws_ssm_parameter" "db_credentials" {
+  name        = "/${var.project_name}/global/db_credentials"
+  type        = "SecureString"
+  value       = jsonencode({
     username = var.db_username
     password = random_password.db_password.result
     endpoint = aws_db_instance.main.address
     db_name  = var.project_name
   })
+  overwrite   = true # Allow updates to the parameter
 }
 
 # --- Database Resources ---
