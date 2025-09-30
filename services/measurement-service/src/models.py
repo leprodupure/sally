@@ -2,14 +2,23 @@ from sqlalchemy import Column, Integer, String, Float, DateTime
 from sqlalchemy.sql import func
 from pydantic import BaseModel
 from datetime import datetime
+import os
 
 from database import Base
 
+def get_schema():
+    schema = "measurement"
+    stack_name = os.getenv("STAGE")
+    if stack_name:
+        schema = f"{schema}_{stack_name}"
+    return schema
+
+SCHEMA = get_schema()
 
 # SQLAlchemy model for the 'measurements' table
 class MeasurementDB(Base):
     __tablename__ = "measurements"
-    __table_args__ = {"schema": "measurement"}
+    __table_args__ = {"schema": SCHEMA}
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, index=True, nullable=False)

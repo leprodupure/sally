@@ -95,6 +95,7 @@ resource "aws_lambda_function" "migration_runner" {
     variables = {
       DATABASE_URL = local.database_url
       S3_BUCKET    = var.s3_package_registry_bucket_name
+      STAGE        = var.stack
     }
   }
 }

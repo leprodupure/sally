@@ -20,10 +20,11 @@ sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), '..'
 # add your model's MetaData object here
 # for 'autogenerate' support
 try:
-    from src.models import Base
+    from src.models import Base, get_schema
 except ImportError:
-    from models import Base
+    from models import Base, get_schema
 
+SCHEMA = get_schema()
 target_metadata = Base.metadata
 
 def get_url():
@@ -38,7 +39,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        version_table_schema='aquarium'
+        version_table_schema=SCHEMA
     )
 
     with context.begin_transaction():
@@ -56,13 +57,13 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        connection.execute(text("CREATE SCHEMA IF NOT EXISTS aquarium"))
+        connection.execute(text(f'CREATE SCHEMA IF NOT EXISTS {SCHEMA}'))
         connection.commit()
 
         context.configure(
             connection=connection, 
             target_metadata=target_metadata,
-            version_table_schema='aquarium'
+            version_table_schema=SCHEMA
         )
 
         with context.begin_transaction():
