@@ -9,11 +9,18 @@ def handler(event, context):
     """
     print(f"Received event: {event}")
     sql_query = event.get('query')
+    service_name = event.get('service_name')
 
     if not sql_query:
         return {
             'statusCode': 400,
             'body': json.dumps({'error': "Missing 'query' parameter in the event payload."})
+        }
+
+    if not service_name:
+        return {
+            'statusCode': 400,
+            'body': json.dumps({'error': "Missing 'service_name' parameter in the event payload."})
         }
 
     conn_string = os.environ.get("DATABASE_URL")
@@ -23,10 +30,13 @@ def handler(event, context):
             'body': json.dumps({'error': "DATABASE_URL environment variable not set."})
         }
 
+    stage = os.environ.get("STAGE")
+    schema_name = f"{service_name}_{stage}" if stage else service_name
+
     conn = None
     try:
-        print(f"Connecting to the database and executing query: {sql_query}")
-        conn = psycopg2.connect(conn_string)
+        print(f"Connecting to the database with schema {schema_name} and executing query: {sql_query}")
+        conn = psycopg2.connect(conn_string, options=f'-c search_path={schema_name}')
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
         cur.execute(sql_query)

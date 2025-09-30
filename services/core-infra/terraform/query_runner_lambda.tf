@@ -74,6 +74,7 @@ resource "aws_lambda_function" "query_runner" {
   environment {
     variables = {
       DATABASE_URL = local.database_url_qr
+      STAGE        = var.stack
     }
   }
 }
