@@ -25,6 +25,7 @@ except ImportError:
     from models import Base, get_schema
 
 SCHEMA = get_schema()
+context.SCHEMA = SCHEMA # Make schema available to migration scripts
 target_metadata = Base.metadata
 
 def get_url():
