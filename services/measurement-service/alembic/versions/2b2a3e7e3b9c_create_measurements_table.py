@@ -15,7 +15,7 @@ branch_labels = None
 depends_on = None
 
 def upgrade():
-    schema = op.get_context().SCHEMA
+    schema = op.get_context().opts['schema']
     op.create_table(
         'measurements',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -36,7 +36,7 @@ def upgrade():
 
 
 def downgrade():
-    schema = op.get_context().SCHEMA
+    schema = op.get_context().opts['schema']
     op.drop_index(op.f('ix_measurements_parameter_type'), table_name='measurements', schema=schema)
     op.drop_index(op.f('ix_measurements_aquarium_id'), table_name='measurements', schema=schema)
     op.drop_index(op.f('ix_measurements_user_id'), table_name='measurements', schema=schema)

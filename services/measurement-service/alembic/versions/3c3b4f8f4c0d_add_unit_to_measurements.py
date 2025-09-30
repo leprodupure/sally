@@ -15,7 +15,7 @@ branch_labels = None
 depends_on = None
 
 def upgrade():
-    schema = op.get_context().SCHEMA
+    schema = op.get_context().opts['schema']
     op.add_column(
         'measurements',
         sa.Column('unit', sa.String(), nullable=True),
@@ -24,5 +24,5 @@ def upgrade():
 
 
 def downgrade():
-    schema = op.get_context().SCHEMA
+    schema = op.get_context().opts['schema']
     op.drop_column('measurements', 'unit', schema=schema)
