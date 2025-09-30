@@ -50,7 +50,7 @@ resource "aws_db_instance" "main" {
   identifier             = "${var.project_name}-global-db"
   engine                 = "postgres"
   engine_version         = "15"
-  instance_class         = "db.t3.micro" # Free Tier eligible
+  instance_class         = "db.t4g.micro" # Free Tier eligible
   allocated_storage      = 20            # Free Tier eligible
   storage_type           = "gp2"
   username               = var.db_username
