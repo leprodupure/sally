@@ -25,6 +25,8 @@ except ImportError:
     from models import Base, get_schema
 
 SCHEMA = get_schema()
+# Set schema on the config for migration scripts to access
+config.set_main_option("schema", SCHEMA)
 target_metadata = Base.metadata
 
 def get_url():
@@ -39,8 +41,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        version_table_schema=SCHEMA,
-        opts={"schema": SCHEMA} # Pass schema to migrations
+        version_table_schema=SCHEMA
     )
 
     with context.begin_transaction():
@@ -64,8 +65,7 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection, 
             target_metadata=target_metadata,
-            version_table_schema=SCHEMA,
-            opts={"schema": SCHEMA} # Pass schema to migrations
+            version_table_schema=SCHEMA
         )
 
         with context.begin_transaction():
