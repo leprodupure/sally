@@ -15,3 +15,8 @@ variable "vpc_cidr" {
   type        = string
   default     = "10.0.0.0/16"
 }
+
+variable "db_username" {
+  description = "The master username for the shared RDS database."
+  type        = string
+}

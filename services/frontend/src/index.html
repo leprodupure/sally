@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sally - Aquarium Manager</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 2rem; background-color: #f4f7f6; color: #333; }
+        h1, h2 { color: #005f73; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .section { margin-bottom: 2rem; padding: 1.5rem; border: 1px solid #ddd; border-radius: 5px; }
+        input, select, button { font-size: 1rem; padding: 0.5rem; margin-top: 0.5rem; border-radius: 4px; border: 1px solid #ccc; }
+        button { background-color: #008cba; color: white; border: none; cursor: pointer; transition: background-color 0.2s; }
+        button:hover { background-color: #005f73; }
+        .delete-btn { background-color: #d90429; margin-left: 1rem; font-size: 0.8rem; padding: 0.2rem 0.5rem; }
+        .delete-btn:hover { background-color: #b2001a; }
+        form { display: flex; flex-direction: column; gap: 10px; }
+        ul { list-style-type: none; padding: 0; }
+        li { display: flex; justify-content: space-between; align-items: center; background-color: #e9ecef; margin-bottom: 8px; padding: 10px; border-radius: 4px; }
+        li > span { flex-grow: 1; cursor: pointer; }
+        li.selected { background-color: #94d2bd; }
+        .hidden { display: none; }
+        .error { color: #d90429; margin-top: 1rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Sally - Aquarium Manager</h1>
+
+    <div id="auth-section">
+        <button id="login-button">Login with Cognito</button>
+    </div>
+
+    <div id="main-content" class="hidden">
+        <div class="section">
+            <h2>Aquariums</h2>
+            <button id="load-aquariums">Load Aquariums</button>
+            <ul id="aquarium-list"></ul>
+            <form id="create-aquarium-form">
+                <h3>Create New Aquarium</h3>
+                <input type="text" id="aq-name" placeholder="Aquarium Name" required>
+                <input type="number" id="aq-volume" placeholder="Volume (Liters)" required>
+                <button type="submit">Create Aquarium</button>
+            </form>
+        </div>
+
+        <div id="measurements-section" class="section hidden">
+            <h2 id="measurements-title">Measurements for Aquarium</h2>
+            <ul id="measurement-list"></ul>
+            <form id="create-measurement-form">
+                <h3>Add New Measurement</h3>
+                <input type="text" id="ms-type" placeholder="Parameter (e.g., temperature)" required>
+                <input type="number" step="0.1" id="ms-value" placeholder="Value" required>
+                <input type="text" id="ms-unit" placeholder="Unit (e.g., C, pH)" required>
+                <button type="submit">Add Measurement</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="error-display" class="error"></div>
+</div>
+
+<script>
+    // DOM Elements
+    const authSection = document.getElementById('auth-section');
+    const loginButton = document.getElementById('login-button');
+    const mainContent = document.getElementById('main-content');
+    const loadAquariumsBtn = document.getElementById('load-aquariums');
+    const aquariumList = document.getElementById('aquarium-list');
+    const createAquariumForm = document.getElementById('create-aquarium-form');
+    const measurementsSection = document.getElementById('measurements-section');
+    const measurementsTitle = document.getElementById('measurements-title');
+    const measurementList = document.getElementById('measurement-list');
+    const createMeasurementForm = document.getElementById('create-measurement-form');
+    const errorDisplay = document.getElementById('error-display');
+
+    // App State
+    const apiPrefix = '/api';
+    let jwtToken = '';
+    let selectedAquariumId = null;
+    let appConfig = {};
+
+    // --- Authentication Flow ---
+    const fetchConfig = async () => {
+        try {
+            const response = await fetch('/config.json');
+            if (!response.ok) throw new Error('config.json not found');
+            appConfig = await response.json();
+        } catch (error) {
+            errorDisplay.textContent = `Failed to load app configuration: ${error.message}`;
+        }
+    };
+
+    const handleAuth = () => {
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const idToken = params.get('id_token');
+
+        if (idToken) {
+            jwtToken = idToken;
+            authSection.classList.add('hidden');
+            mainContent.classList.remove('hidden');
+            window.history.replaceState(null, null, ' ');
+        } else {
+            authSection.classList.remove('hidden');
+            mainContent.classList.add('hidden');
+        }
+    };
+
+    loginButton.addEventListener('click', () => {
+        if (appConfig.cognito_hosted_ui_url) {
+            window.location.href = appConfig.cognito_hosted_ui_url;
+        } else {
+            alert('Configuration not loaded yet. Please wait a moment and try again.');
+        }
+    });
+
+    // --- API Logic ---
+    const apiFetch = async (path, options = {}) => {
+        errorDisplay.textContent = '';
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${jwtToken}`,
+            ...options.headers,
+        };
+        const response = await fetch(`${apiPrefix}${path}`, { ...options, headers });
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || `HTTP error! status: ${response.status}`);
+        }
+        return response.status === 204 ? null : response.json();
+    };
+
+    // --- Rendering Logic ---
+    const renderAquariums = (aquariums) => {
+        aquariumList.innerHTML = '';
+        aquariums.forEach(aq => {
+            const li = document.createElement('li');
+            li.dataset.id = aq.id;
+
+            const text = document.createElement('span');
+            text.textContent = `${aq.name} (${aq.volume_liters}L)`;
+            text.onclick = () => {
+                selectedAquariumId = aq.id;
+                document.querySelectorAll('#aquarium-list li').forEach(item => item.classList.remove('selected'));
+                li.classList.add('selected');
+                loadMeasurements(aq.id, aq.name);
+            };
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.onclick = () => deleteAquarium(aq.id);
+
+            li.appendChild(text);
+            li.appendChild(deleteBtn);
+            aquariumList.appendChild(li);
+        });
+    };
+
+    const renderMeasurements = (measurements) => {
+        measurementList.innerHTML = '';
+        measurements.forEach(ms => {
+            const li = document.createElement('li');
+            li.dataset.id = ms.id;
+            const text = document.createElement('span');
+            text.textContent = `${ms.parameter_type}: ${ms.value} ${ms.unit} at ${new Date(ms.timestamp).toLocaleString()}`;
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.onclick = () => deleteMeasurement(ms.id);
+
+            li.appendChild(text);
+            li.appendChild(deleteBtn);
+            measurementList.appendChild(li);
+        });
+    };
+
+    // --- Event Handlers ---
+    const deleteAquarium = async (aquariumId) => {
+        if (!confirm('Are you sure you want to delete this aquarium? This will also delete all of its measurements.')) return;
+        try {
+            await apiFetch(`/aquariums/${aquariumId}`, { method: 'DELETE' });
+            const itemToRemove = document.querySelector(`#aquarium-list li[data-id='${aquariumId}']`);
+            if (itemToRemove) itemToRemove.remove();
+            // If the deleted aquarium was the selected one, hide the measurements section
+            if (selectedAquariumId === aquariumId) {
+                measurementsSection.classList.add('hidden');
+                selectedAquariumId = null;
+            }
+        } catch (error) {
+            errorDisplay.textContent = `Error deleting aquarium: ${error.message}`;
+        }
+    };
+
+    const deleteMeasurement = async (measurementId) => {
+        if (!confirm('Are you sure you want to delete this measurement?')) return;
+        try {
+            await apiFetch(`/measurements/${measurementId}`, { method: 'DELETE' });
+            const itemToRemove = document.querySelector(`#measurement-list li[data-id='${measurementId}']`);
+            if (itemToRemove) itemToRemove.remove();
+        } catch (error) {
+            errorDisplay.textContent = `Error deleting measurement: ${error.message}`;
+        }
+    };
+
+    const loadMeasurements = async (aquariumId, aquariumName) => {
+        try {
+            const measurements = await apiFetch(`/measurements?aquarium_id=${aquariumId}`);
+            measurementsTitle.textContent = `Measurements for ${aquariumName}`;
+            renderMeasurements(measurements);
+            measurementsSection.classList.remove('hidden');
+        } catch (error) {
+            errorDisplay.textContent = `Error loading measurements: ${error.message}`;
+        }
+    };
+
+    loadAquariumsBtn.addEventListener('click', async () => {
+        try {
+            const aquariums = await apiFetch('/aquariums');
+            renderAquariums(aquariums);
+        } catch (error) {
+            errorDisplay.textContent = `Error loading aquariums: ${error.message}`;
+        }
+    });
+
+    createAquariumForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('aq-name').value;
+        const volume_liters = parseFloat(document.getElementById('aq-volume').value);
+        try {
+            await apiFetch('/aquariums', {
+                method: 'POST',
+                body: JSON.stringify({ name, volume_liters })
+            });
+            loadAquariumsBtn.click(); // Refresh the list
+            createAquariumForm.reset();
+        } catch (error) {
+            errorDisplay.textContent = `Error creating aquarium: ${error.message}`;
+        }
+    });
+
+    createMeasurementForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!selectedAquariumId) {
+            alert('Please select an aquarium first.');
+            return;
+        }
+        const parameter_type = document.getElementById('ms-type').value;
+        const value = parseFloat(document.getElementById('ms-value').value);
+        const unit = document.getElementById('ms-unit').value;
+        const timestamp = new Date().toISOString();
+
+        try {
+            await apiFetch('/measurements', {
+                method: 'POST',
+                body: JSON.stringify({ aquarium_id: selectedAquariumId, parameter_type, value, unit, timestamp })
+            });
+            loadMeasurements(selectedAquariumId, measurementsTitle.textContent.replace('Measurements for ', '')); // Refresh the list
+            createMeasurementForm.reset();
+        } catch (error) {
+            errorDisplay.textContent = `Error adding measurement: ${error.message}`;
+        }
+    });
+
+    // --- Initial Load ---
+    document.addEventListener('DOMContentLoaded', async () => {
+        await fetchConfig();
+        handleAuth();
+    });
+
+</script>
+</body>
+</html>

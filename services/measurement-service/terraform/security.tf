@@ -9,5 +9,5 @@ resource "aws_security_group_rule" "allow_lambda_to_db" {
   to_port                  = 5432
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.lambda.id
-  security_group_id        = data.terraform_remote_state.core.outputs.db_security_group_id
+  security_group_id        = data.terraform_remote_state.global_infra.outputs.db_security_group_id
 }

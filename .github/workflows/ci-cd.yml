@@ -66,6 +66,8 @@ jobs:
               - 'services/aquarium-service/**'
             measurement-service:
               - 'services/measurement-service/**'
+            frontend:
+              - 'services/frontend/**'
 
   # --- Initial Job: Deploy Global Infrastructure ---
   # This job deploys shared resources like the S3 package registry.

@@ -8,4 +8,3 @@
 
 # It's a good practice to use a different CIDR block for each environment
 # to prevent IP address conflicts if you ever need to peer VPCs.
-vpc_cidr = "10.10.0.0/16"

@@ -1,14 +1,23 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime
 from sqlalchemy.sql import func
 from pydantic import BaseModel
+import os
 
 from database import Base
 
+def get_schema():
+    schema = "aquarium"
+    stack_name = os.getenv("STAGE")
+    if stack_name:
+        schema = f"{schema}_{stack_name}"
+    return schema
+
+SCHEMA = get_schema()
 
 # SQLAlchemy model for the 'aquariums' table
 class AquariumDB(Base):
     __tablename__ = "aquariums"
-    __table_args__ = {"schema": "aquarium"}
+    __table_args__ = {"schema": SCHEMA}
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, index=True, nullable=False)

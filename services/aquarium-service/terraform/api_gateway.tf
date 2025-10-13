@@ -12,25 +12,40 @@ resource "aws_apigatewayv2_integration" "main" {
 # --- API Gateway Routes ---
 # This defines the publicly accessible routes for the service.
 
-# GET /aquariums
+# GET /api/aquariums
 resource "aws_apigatewayv2_route" "get_aquariums" {
-  api_id    = data.terraform_remote_state.core.outputs.api_gateway_id
-  route_key = "GET /aquariums"
-  target    = "integrations/${aws_apigatewayv2_integration.main.id}"
+  api_id             = data.terraform_remote_state.core.outputs.api_gateway_id
+  route_key          = "GET /api/aquariums"
+  target             = "integrations/${aws_apigatewayv2_integration.main.id}"
+  authorization_type = "JWT"
+  authorizer_id      = data.terraform_remote_state.core.outputs.api_gateway_authorizer_id
 }
 
-# POST /aquariums
+# POST /api/aquariums
 resource "aws_apigatewayv2_route" "create_aquarium" {
-  api_id    = data.terraform_remote_state.core.outputs.api_gateway_id
-  route_key = "POST /aquariums"
-  target    = "integrations/${aws_apigatewayv2_integration.main.id}"
+  api_id             = data.terraform_remote_state.core.outputs.api_gateway_id
+  route_key          = "POST /api/aquariums"
+  target             = "integrations/${aws_apigatewayv2_integration.main.id}"
+  authorization_type = "JWT"
+  authorizer_id      = data.terraform_remote_state.core.outputs.api_gateway_authorizer_id
 }
 
-# PUT /aquariums/{aquarium_id}
+# PUT /api/aquariums/{aquarium_id}
 resource "aws_apigatewayv2_route" "update_aquarium" {
-  api_id    = data.terraform_remote_state.core.outputs.api_gateway_id
-  route_key = "PUT /aquariums/{aquarium_id}"
-  target    = "integrations/${aws_apigatewayv2_integration.main.id}"
+  api_id             = data.terraform_remote_state.core.outputs.api_gateway_id
+  route_key          = "PUT /api/aquariums/{aquarium_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.main.id}"
+  authorization_type = "JWT"
+  authorizer_id      = data.terraform_remote_state.core.outputs.api_gateway_authorizer_id
+}
+
+# DELETE /api/aquariums/{aquarium_id}
+resource "aws_apigatewayv2_route" "delete_aquarium" {
+  api_id             = data.terraform_remote_state.core.outputs.api_gateway_id
+  route_key          = "DELETE /api/aquariums/{aquarium_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.main.id}"
+  authorization_type = "JWT"
+  authorizer_id      = data.terraform_remote_state.core.outputs.api_gateway_authorizer_id
 }
 
 # This permission allows API Gateway to invoke the Lambda function.

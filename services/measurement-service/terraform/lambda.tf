@@ -1,3 +1,15 @@
+# Read the latest version of the database credentials from SSM Parameter Store
+data "aws_ssm_parameter" "db_credentials" {
+  name = data.terraform_remote_state.global_infra.outputs.db_credentials_parameter_name
+}
+
+# Decode the JSON string from the parameter
+locals {
+  db_credentials = jsondecode(data.aws_ssm_parameter.db_credentials.value)
+  # Construct the database URL from the secret's values
+  database_url = "postgresql+psycopg2://${local.db_credentials.username}:${local.db_credentials.password}@${local.db_credentials.endpoint}/${local.db_credentials.db_name}"
+}
+
 # A security group for the Lambda function to control its network access
 resource "aws_security_group" "lambda" {
   name        = "${var.project_name}-${var.stack}-${var.module_name}-lambda-sg"
@@ -21,8 +33,6 @@ resource "aws_lambda_function" "main" {
   role          = aws_iam_role.lambda_exec.arn
   timeout       = 30
 
-  # Assumes the build script has created a zip file with a standard name
-  # in the parent directory of this terraform module.
   package_type     = "Zip"
   filename         = "../${var.module_name}-lambda.zip"
   source_code_hash = fileexists("../${var.module_name}-lambda.zip") ? filebase64sha256("../${var.module_name}-lambda.zip") : null
@@ -34,7 +44,8 @@ resource "aws_lambda_function" "main" {
 
   environment {
     variables = {
-      DB_SECRET_ARN = data.terraform_remote_state.core.outputs.db_credentials_secret_arn
+      DATABASE_URL = local.database_url,
+      STAGE        = var.stack
     }
   }
 }

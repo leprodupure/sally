@@ -17,3 +17,13 @@ output "private_subnet_cidr_blocks" {
   description = "A list of CIDR blocks of the private subnets."
   value       = aws_subnet.private[*].cidr_block
 }
+
+output "db_credentials_parameter_name" {
+  description = "The name of the SSM Parameter Store parameter containing the database credentials."
+  value       = aws_ssm_parameter.db_credentials.name
+}
+
+output "db_security_group_id" {
+  description = "The ID of the security group for the database."
+  value       = aws_security_group.db.id
+}

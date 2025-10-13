@@ -2,24 +2,15 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import boto3
-import json
 
-def get_db_credentials():
-    secret_name = os.environ['DB_SECRET_ARN']
-    session = boto3.session.Session()
-    client = session.client(service_name='secretsmanager')
-    response = client.get_secret_value(SecretId=secret_name)
-    return json.loads(response['SecretString'])
+# Read the database connection URL from the environment variable
+SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL")
 
-credentials = get_db_credentials()
-
-SQLALCHEMY_DATABASE_URL = (
-    f"postgresql+psycopg2://{credentials['username']}:{credentials['password']}"
-    f"@{credentials['endpoint']}/{credentials['db_name']}"
-)
-
+# Create the SQLAlchemy engine
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
+
+# Create a SessionLocal class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# Create a Base class for declarative models
 Base = declarative_base()
