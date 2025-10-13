@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException, Request, APIRouter
 from sqlalchemy.orm import Session
 from mangum import Mangum
 import os
@@ -6,10 +6,11 @@ import os
 import models
 from database import SessionLocal, engine
 
-# Determine the root path from the STAGE environment variable set in the Lambda function
-ROOT_PATH = f"/{os.environ.get('STAGE', '')}" if os.environ.get('STAGE') else ""
+# The stage is part of the path that API Gateway sends to Lambda
+STAGE = os.environ.get("STAGE", "")
 
-app = FastAPI(root_path=ROOT_PATH)
+app = FastAPI(title="Measurement Service")
+router = APIRouter()
 
 # Dependency to get the database session
 def get_db():
@@ -27,7 +28,7 @@ def get_current_user_id(request: Request) -> str:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
     return user_id
 
-@app.post("/measurements", response_model=models.Measurement)
+@router.post("/measurements", response_model=models.Measurement)
 def create_measurement(measurement: models.MeasurementCreate, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
     db_measurement = models.MeasurementDB(**measurement.model_dump(), user_id=user_id)
     db.add(db_measurement)
@@ -35,7 +36,7 @@ def create_measurement(measurement: models.MeasurementCreate, db: Session = Depe
     db.refresh(db_measurement)
     return db_measurement
 
-@app.get("/measurements", response_model=list[models.Measurement])
+@router.get("/measurements", response_model=list[models.Measurement])
 def read_measurements(aquarium_id: int, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
     measurements = db.query(models.MeasurementDB).filter(
         models.MeasurementDB.aquarium_id == aquarium_id,
@@ -43,7 +44,7 @@ def read_measurements(aquarium_id: int, db: Session = Depends(get_db), user_id: 
     ).all()
     return measurements
 
-@app.put("/measurements/{measurement_id}", response_model=models.Measurement)
+@router.put("/measurements/{measurement_id}", response_model=models.Measurement)
 def update_measurement(
     measurement_id: int,
     measurement: models.MeasurementUpdate,
@@ -67,7 +68,7 @@ def update_measurement(
     db.refresh(db_measurement)
     return db_measurement
 
-@app.delete("/measurements/{measurement_id}", status_code=204)
+@router.delete("/measurements/{measurement_id}", status_code=204)
 def delete_measurement(
     measurement_id: int,
     db: Session = Depends(get_db),
@@ -84,5 +85,8 @@ def delete_measurement(
     db.delete(db_measurement)
     db.commit()
     return {"ok": True}
+
+# The prefix must include the stage for correct routing in the Lambda environment
+app.include_router(router, prefix=f"/{STAGE}/api")
 
 handler = Mangum(app)
