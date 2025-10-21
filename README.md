@@ -22,15 +22,22 @@ Application hosted on a S3 bucket.
 
 The project is divided in microservices.
 
+### Database Architecture
+
+A key architectural decision is the use of a **single, shared AWS RDS database instance** for all environments. To
+ensure data isolation between services and stacks (e.g., `staging`, `pr123`), the project uses a **multi-schema strategy
+**. Schema names are dynamically generated at deployment time (e.g., `aquarium_staging`, `measurement_pr123`), allowing
+for complete data separation while remaining cost-effective and leveraging the AWS Free Tier.
+
 ### Repository Structure
 
 To simplify development and deployment, this project uses a **monorepo** structure. All microservices, shared libraries,
 and infrastructure code reside in a single Git repository. This approach provides several key advantages:
 
--   **Atomic Commits**: Changes that span multiple services (e.g., an API contract change) can be made in a single
-    commit and pull request, ensuring consistency.
--   **Simplified Dependency Management**: All services use a single, consistent version of shared libraries.
--   **Unified CI/CD**: A single, intelligent pipeline can build, test, and deploy only the services that have changed.
+- **Atomic Commits**: Changes that span multiple services (e.g., an API contract change) can be made in a single
+  commit and pull request, ensuring consistency.
+- **Simplified Dependency Management**: All services use a single, consistent version of shared libraries.
+- **Unified CI/CD**: A single, intelligent pipeline can build, test, and deploy only the services that have changed.
 
 The directory structure looks like this:
 
@@ -81,7 +88,7 @@ integration environment.
 
 Staging
 : restricted availability. Used to execute the integration tests. Each time the main branch evolves, the code is
-deployed to the integration environment,
+deployed to the staging environment.
 
 Temporary development environments
 : each feature branch is deployed in a dedicated temporary environment. This environment is created when a pull request
@@ -98,8 +105,8 @@ Each commit on a feature branch triggers the build step:
 1. The code is compiled,
 2. The Unit Tests are run,
 3. SonarQube is called to check the code,
-4. The code and the Terraform code of the microservice are zipped together and published on a package registry (usage of
-   ORAS is needed if GitHub is used).
+4. The code and the Terraform code of the microservice are zipped together and published on a package registry (
+   currently an S3 bucket).
 
 When the package is built on a feature branch, the package published on the registry is marked as _unstable_. When the
 code is merged to the main branch, the pipeline is executed again, and the package is published as _release candidate_.
