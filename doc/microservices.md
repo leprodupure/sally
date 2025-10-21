@@ -1,80 +1,68 @@
-Here is a logical breakdown of services that would support the application's goals:
+# Sally Project: Microservice Architecture
+
+This document provides a logical breakdown of the services that support the application's goals. It distinguishes between the currently implemented architecture and services that are planned for future development.
+
+---
+
+## Implemented Architecture
+
+This section describes the components that are currently built and deployed.
 
 ### Core Infrastructure
 
 This is not a runtime microservice but a foundational infrastructure stack responsible for deploying shared resources.
 
-*   **Responsibility**: Manages and deploys the core, shared infrastructure that all other services depend on. This includes:
-    *   The **Amazon Aurora PostgreSQL Cluster**.
-    *   The main **API Gateway** instance and its Cognito Authorizer.
-    *   The **AWS Cognito User Pool and App Client** for authentication.
-    *   Core networking components (e.g., VPC, subnets).
-    *   The S3 bucket and CloudFront distribution for the **Frontend SPA**.
-*   **Interactions**: This stack is deployed first. It provides outputs (like the database cluster ARN, VPC ID, API Gateway ID) that are consumed by the individual microservice deployment stacks.
-*   **Deployment**: Managed via Terraform in a dedicated directory (`infra/core/`).
+-   **Responsibility**: Manages and deploys the core, shared infrastructure that all other services depend on. This includes:
+    -   The **Amazon RDS for PostgreSQL Instance**.
+    -   The main **API Gateway** instance and its Cognito Authorizer.
+    -   The **AWS Cognito User Pool and App Client** for authentication.
+    -   Core networking components (e.g., VPC, subnets).
+    -   The S3 bucket and CloudFront distribution for the **Frontend SPA**.
+-   **Database Strategy**: A key architectural decision is the use of a **single RDS instance** shared across all environments. Data is isolated using a **multi-schema strategy**, where schema names are dynamically generated based on the service and stack name (e.g., `aquarium_staging`, `measurement_pr123`). This is a cost-effective approach that fully leverages the AWS Free Tier while enabling robust, multi-environment testing.
+-   **Deployment**: Managed via Terraform in a dedicated directory (`services/core-infra/`).
 
-> [!NOTE]
-> **Cost Consideration**: Amazon Aurora is a premium service and is **not** included in the AWS Free Tier. To run this
-> project without incurring costs for the first 12 months, replace `Amazon Aurora PostgreSQL` with a standard
-> `Amazon RDS for PostgreSQL` instance using a free-tier eligible instance class (e.g., `db.t3.micro`).
+### Aquarium Service
 
-### 1. Aquarium Service
+-   **Responsibility**: Manages `Aquarium` entities (CRUD operations). It associates aquariums with a specific user, identified by the user ID from the Cognito JWT token.
+-   **Interactions**: Called by the frontend to manage aquariums.
+-   **Database**: **Amazon RDS for PostgreSQL**.
 
-*   **Responsibility**: Manages `Aquarium` entities (CRUD operations). It associates aquariums with a specific user,
-    identified by the user ID from the Cognito JWT token.
-*   **Interactions**: Called by the frontend to manage aquariums. Queried by the `Analysis & Alerting Service`.
-*   **Database**: **Amazon Aurora PostgreSQL**. Perfect for handling the relational data of aquariums and their
-    relationship to users.
+### Measurement Service
 
-### 2. Measurement Service
+-   **Responsibility**: A high-throughput service for ingesting and storing time-series parameter readings (e.g., `aquarium_id`, `parameter_type`, `value`, `timestamp`).
+-   **Interactions**: Receives new parameter readings from the frontend and is queried by the frontend for charting.
+-   **Database**: **Amazon RDS for PostgreSQL**.
 
-*   **Responsibility**: A high-throughput service for ingesting and storing time-series parameter readings (e.g.,
-    `aquarium_id`, `parameter_type`, `value`, `timestamp`).
-*   **Interactions**: Receives new parameter readings from the frontend. Queried by the frontend for charting and by the
-    `Analysis & Alerting Service`.
-*   **Database**: **Amazon Aurora PostgreSQL**. For consolidation, time-series data will be stored in a structured table.
-    This simplifies the stack, though a dedicated time-series database could be a future optimization.
+### Frontend SPA
 
-### 3. Species Catalog Service
+-   **Responsibility**: Provides the user interface for the application. It is a Single Page Application built with modern web technologies.
+-   **Interactions**:
+    -   Interacts with **AWS Cognito** for authentication.
+    -   Makes authenticated API calls to the backend services via **API Gateway**.
 
-*   **Responsibility**: Acts as a knowledge base for aquatic species, storing information like tolerated water parameters
-    (pH, GH, temp). Includes logic to fetch/update this data from external web sources.
-*   **Interactions**: Queried by the `Aquarium Service` to validate species and by the `Analysis & Alerting Service` to
-    get tolerance thresholds.
-*   **Database**: **Amazon Aurora PostgreSQL**. Leverages PostgreSQL's powerful `JSONB` data type to store flexible,
-    semi-structured documents for each species (common names, aliases, parameters).
+---
 
-### 4. Analysis & Alerting Service
+## Planned Future Services
 
-*   **Responsibility**: The "brains" of the system. Compares data from the `Measurement Service` with thresholds from the
-    `Species Catalog Service`. If a parameter is out of range, it generates and persists an alert.
-*   **Interactions**: Reads from the `Measurement`, `Aquarium`, and `Species Catalog` services. Exposes an API endpoint
-    for the frontend to fetch active alerts.
-*   **Database**: **Amazon Aurora PostgreSQL**. Stores analysis configurations and the generated alerts to be displayed
-    in the UI.
+This section describes services that are part of the project's future vision but are not yet implemented.
 
-### 5. Frontend SPA
+### Species Catalog Service
 
-*   **Responsibility**: Provides the user interface for the application. It is a Single Page Application (e.g., built
-    with React, Vue, or Angular).
-*   **Interactions**:
-    *   Interacts with **AWS Cognito** for authentication.
-    *   Makes authenticated API calls to the backend services via **API Gateway**.
-    *   Periodically polls the `Analysis & Alerting Service` for new alerts to display on the web page.
+-   **Responsibility**: To act as a knowledge base for aquatic species, storing information like tolerated water parameters (pH, GH, temp). It would include logic to fetch/update this data from external web sources.
+-   **Interactions**: Would be queried by the `Aquarium Service` to validate species and by the `Analysis & Alerting Service` to get tolerance thresholds.
+-   **Database**: Would likely use **Amazon RDS for PostgreSQL**, leveraging its `JSONB` data type to store flexible, semi-structured documents for each species.
 
-## Inter-Service Communication
+### Analysis & Alerting Service
 
-Communication between services primarily follows a synchronous, API-driven pattern. The `API Gateway` acts as the
-single entry point, routing requests to the appropriate backend service. For asynchronous tasks, such as triggering an
-analysis run after a new measurement, an event-based pattern using services like **Amazon SNS** or **EventBridge** can
-be used to decouple services and improve resilience.
+-   **Responsibility**: To be the "brains" of the system. It would compare data from the `Measurement Service` with thresholds from the `Species Catalog Service`. If a parameter were out of range, it would generate and persist an alert.
+-   **Interactions**: Would read from the `Measurement`, `Aquarium`, and `Species Catalog` services. It would expose an API endpoint for the frontend to fetch active alerts.
+-   **Database**: Would use **Amazon RDS for PostgreSQL** to store analysis configurations and the generated alerts.
+
+---
 
 ## How They Fit Together
 
-The diagram below illustrates the runtime interactions between the services. The `Core Infrastructure` is a deployment-time
-concept and is therefore not shown.
-
-Here is a simple diagram illustrating how these services might interact:
+The diagram below illustrates the target architecture, including both implemented and planned future services.
 
 ```text
                                +---------------+
@@ -91,24 +79,21 @@ Here is a simple diagram illustrating how these services might interact:
                                                  |
                                                  | (Proxied Requests)
                                                  |
-       +-----------------------------------------+----------------------------+            |
-       |                                         |                                         |
-       v                                         v                                         v
-+----------------+                       +----------------+                       +-----------------+
-| Aquarium Svc   |                       | Measurement Svc|                       | Species Cat. Svc|
-| (Aurora)       |                       | (Aurora)       |                       | (Aurora/JSONB)  |
-+-------+--------+                       +-------+--------+                       +--------+--------+
-        ^ (Reads)                                ^ (Reads)                                ^ (Reads)
-        |                                        |                                        |
-        +----------------------------------------+----------------------------------------+
-                                                 |
-                                                 v                                        |
-                                       +------------------+
-                                       |  Analysis &      |
-                                       |  Alerting Svc    |<------------------------------+
-                                       |  (Aurora)        |
+       +-----------------------------------------+-----------------------------------------+--------------------+
+       |                                         |                                         |                    |
+       v                                         v                                         v                    |
++----------------+                       +----------------+                       +-----------------+           |
+| Aquarium Svc   |                       | Measurement Svc|                       | Species Cat. Svc|           |
+| (RDS)          |                       | (RDS)          |                       | (RDS/JSONB)     |           |
++-------+--------+                       +-------+--------+                       +--------+--------+           |
+        ^ (Reads)                                ^ (Reads)                                ^ (Reads)             |
+        |                                        |                                        |                     |
+        +----------------------------------------+----------------------------------------+                     |
+                                                 |                                                              |
+                                                 v                                                              |
+                                       +------------------+                                                     |
+                                       |  Analysis &      |                                                     |
+                                       |  Alerting Svc    |<----------------------------------------------------+
+                                       |  (RDS)           |
                                        +------------------+
 ```
-
-This microservice architecture provides a clear separation of concerns, allowing you to develop, deploy, and scale each
-part of your application independently, which aligns perfectly with the CI/CD strategy you've outlined.
