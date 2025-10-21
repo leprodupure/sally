@@ -47,3 +47,41 @@ The following table shows a direct mapping of the AWS services currently in use 
 
 -   **Infrastructure as Code**: The project will continue to use **Terraform**. The codebase will be updated to use the **Google Provider** instead of the AWS Provider. Existing `.tf` files will be rewritten to define GCP resources (e.g., `google_cloudfunctions_function`, `google_sql_database_instance`), but the declarative IaC workflow remains the same.
 -   **CI/CD Pipeline**: **GitHub Actions** will remain the CI/CD platform. The workflow will be updated to authenticate with GCP using **Workload Identity Federation** (the recommended keyless approach). Pipeline steps will be modified to use `gcloud` CLI commands instead of the `aws` CLI.
+
+---
+
+## Implementation Strategy: Adopting a Multi-Cloud Monorepo
+
+To execute this migration, the project will **reuse the existing monorepo**, as its structure is ideal for managing a multi-cloud deployment. This approach avoids code duplication and leverages the existing CI/CD investment.
+
+### 1. Directory Structure Update
+
+The infrastructure code for each service will be organized by cloud provider. The current `terraform` directory will be moved under a new `infra/aws` path, and a parallel `infra/gcp` directory will be created.
+
+**Proposed Multi-Cloud Structure:**
+
+```
+services/
+└── aquarium-service/
+    ├── src/             # Application code (cloud-agnostic and unchanged)
+    └── infra/           # New parent directory for all infrastructure
+        ├── aws/         # All existing Terraform files for AWS move here
+        │   └── main.tf
+        └── gcp/         # New directory for GCP Terraform files
+            └── main.tf
+```
+
+### 2. CI/CD Pipeline Evolution
+
+The existing GitHub Actions workflow will be adapted to handle deployments to both clouds by extending its path-filtering logic:
+
+-   A change in `services/*/infra/aws/**` will trigger an **AWS deployment job**.
+-   A change in `services/*/infra/gcp/**` will trigger a new **GCP deployment job**.
+-   A change to the shared application code in `services/*/src/**` can be configured to trigger deployments to **both clouds** to ensure consistency.
+
+### 3. Terraform State Management
+
+The Terraform backend configuration will be parameterized to maintain separate state files for each cloud provider, preventing conflicts.
+
+-   **AWS State**: Will continue to be stored in an S3 bucket (e.g., `s3://my-bucket/aws/aquarium-service/terraform.tfstate`).
+-   **GCP State**: Will be stored in a Google Cloud Storage (GCS) bucket (e.g., `gs://my-bucket/gcp/aquarium-service/terraform.tfstate`).
